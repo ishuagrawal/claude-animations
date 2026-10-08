@@ -80,5 +80,5 @@ def card(text, size, y_center, path, tracking=0.08, sub=None):
 
 
 if __name__ == "__main__":
-    card("LOOKING UP", 140, 790, os.path.join(OUT, "title.png"))
+    card("LOOKING UP", 108, 876, os.path.join(OUT, "title.png"))
     card("LOOKING UP", 92, 884, os.path.join(OUT, "end.png"))

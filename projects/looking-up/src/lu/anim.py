@@ -321,6 +321,30 @@ def spring_follow(src, dst, gain=1.0, freq=3.0, damp=0.35, fps=FPS, t0=0.0, t1=3
     return f
 
 
+def anchor(tr, defaults):
+    """Track params take their FIRST key's value before that key; give every param keyed only later in the shot its
+    default value at t=0, so a head turn keyed at 2 s doesn't start the shot already turned. Call on every character
+    track before baking."""
+    missing = {k: defaults[k] for k, ks in tr._chan().items() if ks[0][0] > 1e-6 and k in defaults}
+    if missing:
+        tr.key(0.0, "linear", **missing)
+    return tr
+
+
+def settle(tr, defaults, max_gap=0.8):
+    """anchor() plus holds: params otherwise glide across the whole gap between two keys; insert a hold so no change
+    takes longer than max_gap seconds (each move starts at most max_gap before the key that ends it)."""
+    anchor(tr, defaults)
+    extra = []
+    for k, ks in tr._chan().items():
+        for (t0, v0, _), (t1, v1, _) in zip(ks, ks[1:]):
+            if t1 - t0 > max_gap + 1e-6 and abs(v1 - v0) > 1e-9:
+                extra.append((t1 - max_gap, k, v0))
+    for t, k, v in extra:
+        tr.key(t, "linear", **{k: v})
+    return tr
+
+
 def prepare_layers(track):
     for fn in track.layers:
         if hasattr(fn, "prepare"):

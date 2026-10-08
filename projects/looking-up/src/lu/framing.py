@@ -6,7 +6,7 @@ from mathutils import Vector, Matrix
 
 from .scene import W, H
 
-IGNORE = ("Balloon", "SewnBalloon", "Lantern", "Rope", "rope", "Rain", "Bolt", "Ray", "Meadow", "Patch", "Grass", "Mote", "Beam", "Puff", "Spark", "Trail", "Cloud", "Flour", "Steam", "Smoke",
+IGNORE = ("Balloon", "SewnBalloon", "Lantern", "Rope", "rope", "Rain", "Bolt", "Ray", "Meadow", "Patch", "Grass", "Mote", "MoteHalo", "Beam", "Puff", "Spark", "Trail", "Cloud", "Flour", "Steam", "Smoke",
           "Dust", "Petal", "Bump", "Hiss", "Tap", "CS_", "CL_", "Meteor", "Comet", "Quilt", "Massif", "Star_light",
           "Splinter", "Ceil", "LandSparks", "FallStreak", "Crater", "Rug")
 
@@ -108,7 +108,7 @@ def inside_mesh(eye):
     back = 0
     for d in (Vector((1, 0, 0)), Vector((-1, 0, 0)), Vector((0, 1, 0)), Vector((0, -1, 0)), Vector((0, 0, 1)), Vector((0, 0, -1))):
         hit, loc, nrm, idx, ob, mtx = sc.ray_cast(dg, eye, d, distance=3.0)
-        if hit and nrm.dot(d) > 0.05 and not any(ob.name.startswith(k) for k in ("Meadow", "Patch", "Grass", "Mote", "Beam", "Rain")):
+        if hit and nrm.dot(d) > 0.05 and not any(ob.name.startswith(k) for k in ("Meadow", "Patch", "Grass", "Mote", "MoteHalo", "Beam", "Rain")):
             back += 1
     return back >= 3
 

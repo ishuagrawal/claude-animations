@@ -68,6 +68,35 @@ def face_key(energy=40.0, col=(1.0, 0.74, 0.5), dist=2.2, size=1.4):
     return made
 
 
+def face_light(ch, cam_loc, lamp_loc=None, energy=40.0, col=(1.0, 0.74, 0.5), dist=2.2, size=1.4, frame=None):
+    """A face key aimed for a given camera position (use in multi-camera shots; face_key aims at whichever camera is
+    live at mid-shot). Soft area light between camera and practical, light-linked to the character only."""
+    sc = bpy.context.scene
+    if frame is not None:
+        sc.frame_set(frame)
+    is_star = hasattr(ch, "body")
+    head = ch.rig.matrix_world.translation + Vector((0, 0, 0.1 if is_star else 0.55))
+    to_cam = Vector(cam_loc) - head
+    to_cam.z = 0
+    to_cam.normalize()
+    dirv = to_cam
+    if lamp_loc is not None:
+        to_l = Vector(lamp_loc) - head
+        to_l.z = 0
+        if to_l.length > 1e-3:
+            dirv = (to_cam * 0.6 + to_l.normalized() * 0.4).normalized()
+    ld = bpy.data.lights.new(f"FaceLight_{ch.rig.name}", "AREA")
+    ld.energy = energy
+    ld.color = col
+    ld.size = size
+    ld.use_shadow = False
+    ob = bpy.data.objects.new(ld.name, ld)
+    sc.collection.objects.link(ob)
+    look_at(ob, head + dirv * dist + Vector((0, 0, 0.9)), head)
+    ob.light_linking.receiver_collection = ch.col
+    return ob
+
+
 OUTSIDE = ("Meadow", "Patch", "Cloud", "Massif", "Pine", "Bush", "Rock", "Terrain", "Sea", "Floor")
 
 

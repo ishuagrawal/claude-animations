@@ -2,7 +2,7 @@
 
     python3 src/audio/render_all.py            # everything (first run decodes and caches samples, ~1-2 min)
     python3 src/audio/render_all.py --no-check # skip the sampler pitch validation
-Outputs in out/audio/: score.wav, foley.wav, ambience.wav, soundtrack.wav (final, 48 kHz 24-bit, 240.0 s),
+Outputs in out/audio/: score.wav, foley.wav, ambience.wav, soundtrack.wav (final, 48 kHz 24-bit, exactly the film length from timeline.py),
 spectrogram.png. Decoded samples, tuning measurements and stems are cached in cache/audio/."""
 import os
 import sys

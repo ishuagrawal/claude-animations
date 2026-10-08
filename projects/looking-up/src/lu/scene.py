@@ -135,9 +135,24 @@ def sun_screen(cam, sun_dir):
     return (v.x, v.y) if v.z > 0 else None
 
 
-def char_lights(collection, target, cam_loc, sun_dir, rim_col=(1.0, 0.7, 0.45), rim_w=350.0,
-                fill_col=(0.75, 0.82, 1.0), fill_w=0.0, rim_dist=2.6, name="CharRig"):
-    """Light-linked rim (from behind, sun side) + optional soft fill for characters only."""
+NIGHT_RIG = dict(rim_col=(0.56, 0.73, 1.0), rim_w=120.0, fill_col=(0.42, 0.58, 0.72), fill_w=0.0)
+
+
+def char_lights(collection, target, cam_loc, sun_dir, rim_col=None, rim_w=None, fill_col=None, fill_w=None,
+                rim_dist=2.6, name="CharRig"):
+    """Light-linked rim (from behind, sun/moon side) + optional soft fill for characters only.
+    Defaults follow the sky preset: at night a cool moonlight rim and a low teal fill (the warm light on faces comes
+    from the practicals: the lantern and the star); by day the v1 warm rim, no fill."""
+    try:
+        from . import sky
+        night = sky.is_night()
+    except Exception:
+        night = False
+    D = NIGHT_RIG if night else dict(rim_col=(1.0, 0.7, 0.45), rim_w=350.0, fill_col=(0.75, 0.82, 1.0), fill_w=0.0)
+    rim_col = D["rim_col"] if rim_col is None else rim_col
+    rim_w = D["rim_w"] if rim_w is None else rim_w
+    fill_col = D["fill_col"] if fill_col is None else fill_col
+    fill_w = D["fill_w"] if fill_w is None else fill_w
     t = Vector(target)
     cam = Vector(cam_loc)
     view = (t - cam)

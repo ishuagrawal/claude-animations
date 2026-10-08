@@ -74,15 +74,65 @@ def _ss(e0, e1, x):
     return t * t * (3 - 2 * t)
 
 
+NIGHT_SHADOW = (0.21, 0.095, 0.075)     # Claude's own shadow-side tint at night (x albedo): deep warm orange
+
+
+def night_paint(color):
+    """Albedo pre-balanced against the night key (moonlight colour) so lit paint reads as the brand orange."""
+    try:
+        from . import sky
+        k = sky.CURRENT.get("key", (0.60, 0.74, 1.0))
+    except Exception:
+        k = (0.60, 0.74, 1.0)
+    c = [color[i] / max(k[i], 1e-3) for i in range(3)]
+    return tuple(c[i] * color[0] / c[0] for i in range(3))      # keep red; scale G/B down so the blue key can't pink it
+
+
+def _worn_paint(color, wear):
+    """Painted albedo with subtle wear (The Wild Robot's Roz is scuffed; Claude stays on-brand #DA7758 on average):
+    broad deeper-orange mottling, a few lighter chipped dabs, fine speckle. wear 0 = clean flat paint."""
+    def fn(nb, co):
+        base = nb.n("ShaderNodeRGB")
+        base.outputs[0].default_value = (*color, 1)
+        if wear <= 0:
+            return base.outputs[0]
+        sp = mat.tex_node(nb, "sponge", co, 1.6)
+        ch = nb.n("ShaderNodeSeparateColor", inputs={"Color": sp.outputs["Color"]})
+        mott = nb.mul(nb.mapr(ch.outputs[2], 0.42, 0.72), 0.5 * wear)
+        dark = nb.n("ShaderNodeRGB")
+        dark.outputs[0].default_value = (color[0] * 0.80, color[1] * 0.74, color[2] * 0.80, 1)
+        alb = nb.mix(mott, base.outputs[0], dark.outputs[0])
+        sp2 = mat.tex_node(nb, "sponge", co, 3.7)
+        chips = nb.mul(nb.mapr(sp2.outputs["Alpha"], 0.55, 0.95), 0.32 * wear)
+        light = nb.n("ShaderNodeRGB")
+        light.outputs[0].default_value = (min(1.0, color[0] * 1.14 + 0.03), min(1.0, color[1] * 1.22 + 0.02),
+                                          min(1.0, color[2] * 1.25 + 0.02), 1)
+        alb = nb.mix(chips, alb, light.outputs[0])
+        speck = nb.mul(nb.mapr(ch.outputs[1], 0.78, 0.9), 0.25 * wear)
+        return nb.mix(speck, alb, dark.outputs[0])
+    return fn
+
+
 class Claude:
-    def __init__(self, name="Claude", collection=None, color=ORANGE, wear=0.0):
+    def __init__(self, name="Claude", collection=None, color=ORANGE, wear=0.35):
         self.name = name
         col = collection or geo.coll(name)
         self.col = col
         # ---------------- materials
-        body_mat = mat.painterly(f"{name}_paint", color, stroke="strokes_soft", scale=1.5, coord="rest",
-                                 tex_amt=0.28, hue_jit=0.012, bump=0.03, breakup=0.9, spec=0.14, rough=0.5, spec_col=(1.0, 0.72, 0.5),
-                                 rim=0.35, ao=0.5, front_fill=1.0, snow=0.0)
+        try:
+            from . import sky
+            night = sky.is_night()
+        except Exception:
+            night = False
+        # night: the moonlight is blue, so the paint is pre-balanced against it (lit side stays #DA7758 orange, not a
+        # muddy pink-brown) and the shadow side is a deep warm red-orange instead of the scene's teal tint
+        paint = night_paint(color) if night else color
+        body_mat = mat.painterly(f"{name}_paint", paint, stroke="strokes_soft", scale=1.5, coord="rest",
+                                 shadow=NIGHT_SHADOW if night else None,
+                                 tex_amt=0.34 if night else 0.28, hue_jit=0.014, bump=0.03, breakup=0.9, spec=0.05 if night else 0.14,
+                                 rough=0.78 if night else 0.5, spec_col=(0.75, 0.85, 1.0) if night else (1.0, 0.72, 0.5),
+                                 rim=0.45 if night else 0.35, rim_col=(0.62, 0.78, 1.0) if night else (1.0, 0.85, 0.6),
+                                 ao=0.5, front_fill=1.0, snow=0.0, albedo_fn=_worn_paint(paint, wear))
         self.body_mat = body_mat
         # ---------------- armature
         arm_data = bpy.data.armatures.new(name + "_rig")

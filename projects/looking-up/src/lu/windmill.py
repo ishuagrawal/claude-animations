@@ -40,7 +40,8 @@ def mats():
                                 c2_scale=0.6, vcol="tint", ao=0.5)
     M["stone"] = mat.painterly("Stone", (0.55, 0.50, 0.46), stroke="strokes_broad", scale=0.9, tex_amt=1.1,
                                breakup=1.4, bump=0.3, color2=(0.34, 0.40, 0.20), c2_thresh=(0.62, 0.7), vcol="tint", ao=0.6)
-    M["mortar"] = mat.painterly("Mortar", (0.36, 0.33, 0.30), stroke="strokes_broad", scale=1.2, tex_amt=0.8, breakup=1.0, ao=0.6)
+    M["mortar"] = mat.painterly("Mortar", (0.22, 0.21, 0.19), stroke="strokes_broad", scale=1.2, tex_amt=0.9, breakup=1.1,
+                                color2=(0.14, 0.2, 0.08), c2_thresh=(0.5, 0.62), ao=0.6)
     M["wood"] = mat.painterly("Wood", (0.38, 0.24, 0.14), stroke="strokes_horiz", scale=1.4, tex_amt=1.2,
                               breakup=1.3, bump=0.25, color2=(0.48, 0.35, 0.24), ao=0.5)
     M["wood_dark"] = mat.painterly("WoodDark", (0.17, 0.11, 0.08), stroke="strokes_horiz", scale=1.6, tex_amt=1.1,
@@ -51,14 +52,15 @@ def mats():
                               breakup=1.2, bump=0.15, color2=(0.30, 0.18, 0.12), c2_thresh=(0.62, 0.72), ao=0.5)
     M["shingle"] = mat.painterly("Shingle", (0.26, 0.19, 0.15), stroke="strokes_horiz", scale=1.6, tex_amt=1.3,
                                  breakup=1.4, bump=0.35, color2=(0.36, 0.38, 0.22), c2_thresh=(0.6, 0.68), vcol="tint", ao=0.5)
-    M["canvas"] = mat.painterly("Canvas", (0.82, 0.74, 0.58), stroke="strokes_fine", scale=1.2, tex_amt=0.8,
-                                breakup=1.1, translucent=0.45, wrap=0.15, bump=0.1, backface=True)
+    M["canvas"] = mat.painterly("Canvas", (0.70, 0.62, 0.48), stroke="strokes_vert", scale=1.1, tex_amt=1.1,
+                                breakup=1.3, translucent=0.45, wrap=0.15, bump=0.12, backface=True,
+                                color2=(0.50, 0.41, 0.30), c2_thresh=(0.56, 0.68), c2_scale=0.5)
     M["iron"] = mat.painterly("Iron", (0.07, 0.065, 0.06), stroke="strokes_fine", scale=3, tex_amt=0.8, spec=0.5,
                               rough=0.35, breakup=0.8)
     M["glass"] = mat.painterly("WindowGlass", (0.04, 0.05, 0.07), stroke="strokes_fine", scale=2, tex_amt=0.4,
                                spec=0.9, rough=0.12, emission=(1.0, 0.60, 0.26), emit_str=0.0)
-    M["sack"] = mat.painterly("Sack", (0.64, 0.54, 0.38), stroke="strokes_fine", scale=2.5, tex_amt=1.0, breakup=1.2,
-                              bump=0.25, ao=0.5)
+    M["sack"] = mat.painterly("Sack", (0.40, 0.31, 0.20), stroke="strokes_fine", scale=2.5, tex_amt=1.2, breakup=1.3,
+                              bump=0.35, color2=(0.30, 0.23, 0.15), c2_thresh=(0.55, 0.66), ao=0.5)
     return M
 
 
@@ -106,9 +108,16 @@ def _stone_base(col, M, rng):
                 win = abs(abs(deg) - 45) < 1 and deg != 0 and abs(uc) < 0.6 and 0.55 < z0 + hrow / 2 < 1.8 and \
                     (abs(deg + 45) < 1 or abs(deg - 45) < 1)
                 if not door and not win and abs(uc) < face_w / 2 + 0.05:
-                    sb = geo.rounded_box("St", (w - 0.05, 0.22, hrow - 0.04), 0.07, seg=(1, 1, 1), n_r=2, collection=col,
+                    sb = geo.rounded_box("St", (w - 0.06, 0.22, hrow - 0.05), 0.04, seg=(2, 1, 1), n_r=2, collection=col,
                                          mat=M["stone"])
-                    geo.displace_noise(sb, 0.025, 0.12, seed=int(rng.integers(0, 1_000_000)))
+                    geo.displace_noise(sb, 0.03, 0.1, seed=int(rng.integers(0, 1_000_000)))
+                    zc = z0 + hrow / 2
+                    v = rng.uniform(0.78, 1.12)
+                    hue = rng.normal(0, 0.04)
+                    moss = max(0.0, 1 - zc / 1.1) * rng.uniform(0.3, 1.0) if rng.random() < 0.7 else 0.0
+                    sc_ = np.array([v * (1 + hue), v, v * (1 - hue)])
+                    sc_ = sc_ * (1 - 0.45 * moss) + np.array([0.48, 0.6, 0.3]) * 0.45 * moss
+                    _tint_attr(sb, lambda co, c=sc_: np.tile(c, (len(co), 1)))
                     p = nrm * (BASE_R + 0.05) + tang * uc + Vector((0, 0, z0 + hrow / 2))
                     sb.location = p
                     sb.rotation_euler = (rng.normal(0, 0.03), rng.normal(0, 0.03), fa + math.pi / 2 + rng.normal(0, 0.03))
@@ -116,14 +125,6 @@ def _stone_base(col, M, rng):
                     stones.append(sb)
                 u += w
     st = geo.join(stones, "BaseStones")
-
-    def tint(co):
-        z = co[:, 2]
-        n = np.sin(co[:, 0] * 3.1 + co[:, 1] * 2.3) * np.cos(co[:, 2] * 4.7)
-        base = np.stack([0.95 + 0.1 * n, 0.92 + 0.08 * n, 0.88 + 0.06 * n], 1)
-        moss = np.clip(1 - z / 1.2, 0, 1)[:, None]
-        return base * (1 - 0.3 * moss) + np.array([0.55, 0.62, 0.35]) * 0.3 * moss
-    _tint_attr(st, tint)
     return core, st
 
 
@@ -154,11 +155,21 @@ def _timber_tower(col, M):
     def tint(co):
         z = co[:, 2]
         ang = np.arctan2(co[:, 1], co[:, 0])
-        streak = np.clip(np.sin(ang * 23 + z * 0.3) * 0.5 + 0.5, 0, 1) ** 3 * 0.25
-        top = np.clip((z - CAP_Z + 1.4) / 1.4, 0, 1) * 0.25
-        n = np.sin(co[:, 0] * 1.7 + z * 2.9) * 0.06
-        g = 1 - streak - top + n
-        return np.stack([g, g * 0.98, g * 0.95], 1)
+        row = np.floor((z - BASE_H) / (TOWER_H / nb) + 0.02)
+        side = np.round(ang / (2 * K)) % SIDES
+        h = np.sin(row * 12.9898 + side * 78.233) * 43758.5453
+        rnd = h - np.floor(h)                                   # one random value per board
+        h2 = np.sin(row * 4.123 + side * 19.71 + 3.3) * 9631.17
+        rnd2 = h2 - np.floor(h2)
+        streak = np.clip(np.sin(ang * 23 + z * 0.3) * 0.5 + 0.5, 0, 1) ** 3 * 0.22
+        top = np.clip((z - CAP_Z + 1.4) / 1.4, 0, 1) * 0.25          # under the cap's drip line
+        low = np.clip(1 - (z - BASE_H) / 0.9, 0, 1)                    # splash zone above the gallery
+        n = np.sin(co[:, 0] * 1.7 + z * 2.9) * 0.05
+        g = (0.80 + 0.32 * rnd) * (1 - streak - top + n) * (1 - 0.18 * low)
+        warm = 1 + 0.10 * (rnd2 - 0.5)
+        c = np.stack([g * warm, g * 0.98, g * (0.95 - 0.08 * (rnd2 - 0.5))], 1)
+        moss = (low * 0.55 * (rnd2 > 0.35))[:, None]
+        return c * (1 - moss) + np.array([0.55, 0.66, 0.38]) * g[:, None] * moss
     _tint_attr(tw, tint)
     posts = []
     for s in range(SIDES):
@@ -333,21 +344,32 @@ def build(origin=(0.0, 7.0, 1.38), collection=None, sails_angle=0.0, canvas=(1, 
     gab.rotation_euler = (math.radians(5), 0, 0)
     _tint_attr(gab, lambda co: np.ones((len(co), 3)) * 0.9)
     add(gab)
-    # tail pole (back) down to the ground with a wheel
-    tp = geo.box("TailPole", (0.22, 12.5, 0.22), collection=col, mat=M["wood_grey"], bevel=0.02)
-    tp.location = (0, 6.0, cz - 4.4)
-    tp.rotation_euler = (math.radians(-44), 0, 0)
-    add(tp)
-    for s in (-1, 1):
-        st = geo.box("TailStrut", (0.12, 7.0, 0.12), collection=col, mat=M["wood_grey"], bevel=0.01)
-        st.location = (s * 1.0, 3.8, cz - 2.2)
-        st.rotation_euler = (math.radians(-32), 0, math.radians(s * 9))
-        add(st)
-    wheel = geo.lathe("TailWheel", [(0.05, -0.07), (0.5, -0.07), (0.55, 0.0), (0.5, 0.07), (0.05, 0.07)], seg=24,
-                      collection=col, mat=M["wood_dark"])
-    wheel.location = (0, 10.4, 0.5)
-    wheel.rotation_euler = (0, math.radians(90), 0)
-    add(wheel)
+    # fantail on the cap's rear (north): a small wind rotor that keeps the sails turned into the wind. It replaces the
+    # long tail pole, which would run down into the north meadow (the story's stage) and across the north view.
+    ft = []
+    for sx in (-0.45, 0.45):
+        st = geo.box("FantailStrut", (0.1, 1.9, 0.1), collection=col, mat=M["wood_grey"], bevel=0.01)
+        st.location = (sx, 3.95, cz + 1.25)
+        st.rotation_euler = (math.radians(-28), 0, 0)
+        ft.append(st)
+        up = geo.box("FantailPost", (0.09, 0.09, 1.3), collection=col, mat=M["wood_grey"], bevel=0.01)
+        up.location = (sx, 4.75, cz + 1.65)
+        ft.append(up)
+    ft.append(geo.box("FantailBeam", (1.1, 0.12, 0.12), loc=(0, 4.75, cz + 2.25), collection=col, mat=M["wood_dark"], bevel=0.01))
+    ft.append(geo.box("FantailAxle", (1.05, 0.07, 0.07), loc=(0, 4.75, cz + 2.0), collection=col, mat=M["iron"]))
+    add(geo.join(ft, "FantailFrame"))
+    rot = []
+    for k in range(8):
+        aa = math.pi * 2 * k / 8
+        bl = geo.box("FantailVane", (0.03, 0.3, 0.62), collection=col, mat=M["canvas"])
+        bl.matrix_basis = Matrix.Rotation(aa, 4, "X") @ Matrix.Translation((0, 0, 0.42)) @ Matrix.Rotation(0.5, 4, "Z")
+        rot.append(bl)
+        sp = geo.box("FantailSpoke", (0.03, 0.03, 0.8), collection=col, mat=M["wood_grey"])
+        sp.matrix_basis = Matrix.Rotation(aa, 4, "X") @ Matrix.Translation((0, 0, 0.4))
+        rot.append(sp)
+    fr = geo.join(rot, "Fantail")
+    fr.location = (0.0, 4.75, cz + 2.0)
+    add(fr)
 
     # ---------------- windshaft + sails
     sh_dir = Vector((0, -1, math.tan(math.radians(5)))).normalized()
@@ -367,34 +389,16 @@ def build(origin=(0.0, 7.0, 1.38), collection=None, sails_angle=0.0, canvas=(1, 
     poll.parent = hub
     sails_set_angle(hub, sails_angle)
 
-    # ---------------- yard props
-    props = [geo.box("LampHook", (0.05, 0.42, 0.05), loc=(0.95, fy - 0.2, 2.15), collection=col, mat=M["iron"])]
-    bench = [geo.box("BenchSeat", (1.6, 0.42, 0.08), loc=(0, 0, 0.48), collection=col, mat=M["wood"], bevel=0.015)]
-    for s in (-0.65, 0.65):
-        bench.append(geo.box("BenchLeg", (0.08, 0.36, 0.45), loc=(s, 0, 0.22), collection=col, mat=M["wood_dark"], bevel=0.01))
-    bj = geo.join(bench, "Bench")
-    bj.location = (-2.35, fy - 0.55, 0.0)
-    bj.rotation_euler = (0, 0, math.radians(14))
-    props.append(bj)
-    for i, (x, y, rz, hh) in enumerate([(2.1, fy - 0.45, 0.3, 0.72), (2.65, fy - 0.2, -0.4, 0.62), (2.35, fy - 0.15, 0.9, 0.55)]):
-        sk = geo.rounded_box(f"Sack{i}", (0.55, 0.42, hh), 0.16, seg=(2, 2, 2), n_r=3, collection=col, mat=M["sack"])
-        geo.displace_noise(sk, 0.03, 0.2, seed=i)
-        sk.location = (x, y, hh / 2 - 0.04 + (0.62 if i == 2 else 0))
-        sk.rotation_euler = (0, math.radians(8 * (i - 1)), rz)
-        props.append(sk)
-    barrel = geo.lathe("Barrel", [(0.34, 0), (0.4, 0.2), (0.43, 0.45), (0.4, 0.7), (0.34, 0.9)], seg=24, collection=col, mat=M["wood"])
-    barrel.location = (-3.4, -2.9, 0.0)
-    props.append(barrel)
-    wood = []
-    for i in range(14):
-        lg = geo.lathe("Log", [(0.0, -0.45), (0.11, -0.45), (0.12, 0.45), (0.0, 0.45)], seg=10, collection=col, mat=M["wood"])
-        lg.location = (3.9, 0.6 + (i % 5) * 0.24, 0.12 + (i // 5) * 0.22)
-        lg.rotation_euler = (0, math.radians(90), math.radians(rng.normal(0, 4)))
-        wood.append(lg)
-    props.append(geo.join(wood, "WoodPile"))
-    for o in props:
+    # ---------------- door lamp hook (the yard itself is dressed by dress.yard)
+    hookp = [geo.box("LampHook", (0.05, 0.42, 0.05), loc=(0.95, fy - 0.2, 2.15), collection=col, mat=M["iron"]),
+             geo.box("LampHookPlate", (0.14, 0.03, 0.2), loc=(0.95, fy + 0.01, 2.12), collection=col, mat=M["iron"])]
+    add(geo.join(hookp, "LampHook"))
+    # ---------------- ivy on the stone base, window flower boxes
+    add(_ivy(col, np.random.default_rng(23)))
+    for o in _flower_boxes(col, M, root):
         add(o)
-    return dict(root=root, hub=hub, sails=sails, windows=windows, mats=M, parts=parts)
+    return dict(root=root, hub=hub, sails=sails, windows=windows, mats=M, parts=parts, mount=mount,
+                origin=Vector(origin))
 
 
 def set_shutter(piv, openness):
@@ -417,8 +421,8 @@ def build_sails(hub, col, M, canvas):
         nb = 18
         for i in range(nb):
             z = z0 + (z1 - z0) * i / (nb - 1)
-            parts.append(geo.box("SailBar", (x1 - x0 + 0.1, 0.065, 0.065), loc=((x0 + x1) / 2, 0.06, z), collection=col, mat=M["wood_grey"]))
-        parts.append(geo.box("Hemlath", (0.08, 0.1, z1 - z0), loc=(x1, 0.06, (z0 + z1) / 2), collection=col, mat=M["wood_grey"]))
+            parts.append(geo.box("SailBar", (x1 - x0 + 0.1, 0.065, 0.065), loc=((x0 + x1) / 2, 0.06, z), collection=col, mat=M["wood_dark"]))
+        parts.append(geo.box("Hemlath", (0.08, 0.1, z1 - z0), loc=(x1, 0.06, (z0 + z1) / 2), collection=col, mat=M["wood_dark"]))
         parts.append(geo.box("Leadboard", (0.42, 0.04, z1 - z0 - 0.6), loc=(-0.33, 0.02, (z0 + z1) / 2 + 0.3), collection=col, mat=M["wood"]))
         frame = geo.join(parts, f"SailFrame{k}")
         frame.parent = arm
@@ -445,3 +449,356 @@ def build_sails(hub, col, M, canvas):
 def sails_set_angle(hub, deg):
     hub.rotation_mode = "XYZ"
     hub.rotation_euler = (0, 0, math.radians(deg))
+
+
+# ===================================================================== lived-in detail
+def _wall_r(a, z=0.5):
+    """Distance from the mill axis to the face of the stone base (incl. protruding stones) along direction a."""
+    d = a - face_angle(a)
+    return (BASE_R + 0.17) / max(math.cos(d), 0.5)
+
+
+def _ivy_mat():
+    m = bpy.data.materials.get("Ivy")
+    if m:
+        return m
+    return mat.painterly("Ivy", (1, 1, 1), stroke="strokes_fine", scale=6.0, tex_amt=0.8, hue_jit=0.06, bump=0.1,
+                         breakup=1.3, wrap=0.25, translucent=0.25, vcol="col", backface=True, snow=0.0)
+
+
+def _ivy(col, rng):
+    """Ivy climbing the fieldstone base (heavier on the shady west/north faces), avoiding the door and windows."""
+    from . import dress
+    mb = dress.MB()
+    starts = []
+    for a_deg, n in ((180, 7), (140, 5), (215, 6), (110, 2), (250, 4), (-65, 3), (-118, 4), (20, 2), (65, 1), (-20, 2)):
+        for k in range(n):
+            starts.append(math.radians(a_deg + rng.normal(0, 9)))
+    leaf_dark, leaf_lit = (0.035, 0.10, 0.035), (0.11, 0.24, 0.07)
+
+    def blocked(a, z):
+        dg = (math.degrees(a) + 540) % 360 - 180
+        if abs(dg + 90) < 17 and z < 2.6:                       # door
+            return True
+        for w in (-45, 45):
+            if abs(dg - w) < 13 and 0.45 < z < 1.75:              # ground floor windows (+ flower boxes)
+                return True
+        return False
+
+    def grow(a, z, length, depth):
+        pts = []
+        da = rng.normal(0, 0.01)
+        for i in range(int(length / 0.07)):
+            if z > BASE_H - 0.05 or blocked(a, z):
+                break
+            r = _wall_r(a) + 0.015
+            nrm = Vector((math.cos(a), math.sin(a), 0))
+            p = Vector((r * math.cos(a), r * math.sin(a), z))
+            pts.append((p, nrm))
+            da = da * 0.85 + rng.normal(0, 0.012)
+            a += da
+            z += rng.uniform(0.05, 0.085)
+            if depth < 2 and rng.random() < 0.11:
+                grow(a, z, length * rng.uniform(0.3, 0.6), depth + 1)
+        # stem
+        for (p0, n0), (p1, n1) in zip(pts, pts[1:]):
+            side = (p1 - p0).cross(n0).normalized() * 0.006
+            i0 = mb.vert(p0 - side, (0, 0), (0.12, 0.08, 0.05), n0)
+            i1 = mb.vert(p0 + side, (0.1, 0), (0.12, 0.08, 0.05), n0)
+            i2 = mb.vert(p1 + side, (0.1, 0.1), (0.12, 0.08, 0.05), n0)
+            i3 = mb.vert(p1 - side, (0, 0.1), (0.12, 0.08, 0.05), n0)
+            mb.face(i0, i1, i2, i3)
+        # leaves: 3-lobed ivy leaves on short petioles, facing out and a little up
+        for (p, nrm) in pts:
+            for k in range(int(rng.integers(2, 5))):
+                tang = Vector((-nrm.y, nrm.x, 0))
+                off = tang * rng.normal(0, 0.07) + Vector((0, 0, rng.normal(0, 0.035)))
+                s = rng.uniform(0.04, 0.075) * (1.15 if depth == 0 else 0.9)
+                fn = (nrm * 0.75 + Vector((0, 0, 0.55)) + Vector(rng.normal(0, 0.2, 3))).normalized()
+                up = (Vector((0, 0, 1)) - fn * fn.z).normalized()
+                rt = fn.cross(up).normalized()
+                c = p + nrm * rng.uniform(0.02, 0.06) + off
+                tone = rng.random()
+                cl = tuple(leaf_dark[j] + (leaf_lit[j] - leaf_dark[j]) * tone for j in range(3))
+                ci = mb.vert(c, (0.5, 0.5), cl, fn)
+                ring = []
+                for j in range(9):
+                    t = j / 8.0
+                    ang = -math.pi * 0.95 + 1.9 * math.pi * t
+                    lobe = 0.75 + 0.35 * abs(math.cos(ang * 1.5))
+                    q = c + (up * math.cos(ang) * 1.05 + rt * math.sin(ang)) * s * lobe
+                    ring.append(mb.vert(q, (0.5 + 0.5 * math.sin(ang), 0.5 + 0.5 * math.cos(ang)),
+                                        tuple(min(1, x * 1.2) for x in cl), fn))
+                for j in range(8):
+                    mb.face(ci, ring[j], ring[j + 1])
+
+    for a in starts:
+        grow(a, -0.05, rng.uniform(1.2, 3.4), 0)
+    return mb.build("Ivy", col, _ivy_mat())
+
+
+def _flower_boxes(col, M, root):
+    """Planter boxes under the two ground-floor windows, spilling flowers (cover prototypes, instanced)."""
+    from . import dress
+    out = []
+    lib = dress.protos()
+    pts = []
+    for a_deg in (-45, 45):
+        a = math.radians(a_deg)
+        nrm = Vector((math.cos(a), math.sin(a), 0))
+        tang = Vector((-nrm.y, nrm.x, 0))
+        r = BASE_R + 0.17 + 0.14
+        c = nrm * r + Vector((0, 0, 0.52))
+        parts = [geo.box("FBox", (0.98, 0.26, 0.2), collection=col, mat=M["wood"], bevel=0.015)]
+        parts.append(geo.box("FBoxRim", (1.02, 0.3, 0.035), loc=(0, 0, 0.1), collection=col, mat=M["wood_dark"]))
+        parts.append(geo.box("FBoxSoil", (0.92, 0.2, 0.02), loc=(0, 0, 0.085), collection=col, mat=M["mortar"]))
+        for sx in (-0.38, 0.38):
+            parts.append(geo.box("FBoxBracket", (0.05, 0.2, 0.22), loc=(sx, 0.05, -0.17), collection=col, mat=M["iron"]))
+        b = geo.join(parts, f"FlowerBox{a_deg}")
+        b.matrix_basis = Matrix.Translation(c) @ Matrix.Rotation(a + math.pi / 2, 4, "Z")
+        out.append(b)
+        rng = np.random.default_rng(abs(a_deg))
+        for k in range(16):
+            u = rng.uniform(-0.42, 0.42)
+            v = rng.uniform(-0.07, 0.07)
+            p = c + tang * u + nrm * v + Vector((0, 0, 0.09))
+            kind = ["daisy", "pclover", "violet", "butter", "geranium", "geranium", "geranium"][int(rng.integers(0, 7))]
+            if kind not in lib:
+                kind = "pclover"
+            pts.append((p, lib[kind][int(rng.integers(0, len(lib[kind])))], rng.uniform(0.75, 1.0)))
+        for k in range(5):                                       # trailing fern fronds over the front edge
+            u = rng.uniform(-0.45, 0.45)
+            p = c + tang * u + nrm * 0.1 + Vector((0, 0, 0.08))
+            pts.append((p, lib["fern"][int(rng.integers(0, len(lib["fern"])))], rng.uniform(0.35, 0.5)))
+    n = len(pts)
+    rng = np.random.default_rng(5)
+    P = dict(co=np.array([tuple(p) for p, _, _ in pts]), proto=np.array([i for _, i, _ in pts], dtype=np.int32),
+             rot=np.stack([rng.normal(0, 0.1, n), rng.normal(0, 0.1, n), rng.uniform(0, 6.28, n)], 1),
+             scale=np.array([s for _, _, s in pts]), tint=np.ones((n, 3)), flex=np.full(n, 0.5), lean=np.zeros((n, 3)))
+    fl = dress._cloud("WinBoxFlowers", P, col)
+    out.append(fl)
+    return out
+
+
+# ===================================================================== lanterns
+def _flame_mat():
+    m = bpy.data.materials.get("WM_LanternFlame")
+    if m:
+        return m
+    return mat.emissive("WM_LanternFlame", (1.0, 0.62, 0.22), 16.0)
+
+
+def _glow_mat():
+    """Soft amber glow ball around a lantern flame (screen-facing falloff, additive)."""
+    m = bpy.data.materials.get("WM_LanternGlow")
+    if m:
+        return m
+    m = bpy.data.materials.new("WM_LanternGlow")
+    m.use_nodes = True
+    t = m.node_tree
+    t.nodes.clear()
+    nb = mat.NB(t)
+    lw = nb.n("ShaderNodeLayerWeight", inputs={"Blend": 0.5})
+    a = nb.math("POWER", nb.mapr(lw.outputs["Facing"], 0.0, 1.0, 1.0, 0.0, interp="LINEAR"), 2.6)
+    em = nb.n("ShaderNodeEmission", inputs={"Color": (1.0, 0.55, 0.2)})
+    nb.inp(em, "Strength", nb.mul(a, 1.6))
+    tr = nb.n("ShaderNodeBsdfTransparent")
+    add = nb.n("ShaderNodeAddShader")
+    nb.link(tr.outputs[0], add.inputs[0])
+    nb.link(em.outputs[0], add.inputs[1])
+    out = nb.n("ShaderNodeOutputMaterial")
+    nb.link(add.outputs[0], out.inputs[0])
+    m.surface_render_method = "BLENDED"
+    return m
+
+
+def hanging_lantern(name, ring_pos, energy=12.0, scale=0.7, parent=None, col=None):
+    """A brass lantern (interior.lantern) hanging by its ring at ring_pos (world), with flame, glow and a warm point
+    light. Returns dict(root, light, flame, glow, ring_h)."""
+    from . import interior
+    col = col or geo.coll("Windmill")
+    Mi = interior.mats()
+    L = interior.lantern(col, Mi, name=name)
+    root = L["root"]
+    root.scale = (scale, scale, scale)
+    ring_h = 0.44 * scale
+    root.location = Vector(ring_pos) - Vector((0, 0, ring_h))
+    fl = geo.lathe(name + "_flame", [(0.0, 0.0), (0.022, 0.02), (0.016, 0.05), (0.0, 0.085)], seg=10, collection=col,
+                   mat=_flame_mat())
+    fl.parent = root
+    fl.location = (0, 0, 0.1)
+    fl.visible_shadow = False
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=0.32)
+    g = bpy.context.active_object
+    for c in g.users_collection:
+        c.objects.unlink(g)
+    col.objects.link(g)
+    g.name = name + "_glow"
+    g.data.materials.append(_glow_mat())
+    g.data.shade_smooth()
+    g.parent = root
+    g.location = (0, 0, 0.17)
+    g.visible_shadow = False
+    ld = bpy.data.lights.new(name + "_light", "POINT")
+    ld.color = (1.0, 0.6, 0.26)
+    ld.energy = energy
+    ld.shadow_soft_size = 0.05
+    lo = bpy.data.objects.new(name + "_light", ld)
+    col.objects.link(lo)
+    lo.parent = root
+    lo.location = (0, 0, 0.17)
+    if parent is not None:
+        mw = root.matrix_world.copy() if False else Matrix.Translation(root.location) @ Matrix.Diagonal((scale, scale, scale, 1))
+        root.parent = parent
+        root.matrix_parent_inverse = parent.matrix_world.inverted()
+    return dict(root=root, light=lo, flame=fl, glow=g, ring_h=ring_h)
+
+
+HOOK_N_ANGLE = 78.75     # the north-gallery rail post (deg from +X) carrying Claude's lantern hook (east of its mark)
+DOOR_HOOK = (0.95, -BASE_R - 0.06 - 0.41, 2.12)   # mill-local point the porch lantern's ring hangs from
+
+
+def rail_r():
+    return BASE_R / math.cos(K) + 0.9 - 0.07
+
+
+def gallery_hook(origin, col=None, M=None):
+    """Iron shepherd's hook on the north rail post (HOOK_N_ANGLE): returns the world point where a lantern ring hangs."""
+    col = col or geo.coll("Windmill")
+    M = M or mats()
+    O = Vector(origin)
+    dz = O.z + GALLERY_Z + 0.165
+    a = math.radians(HOOK_N_ANGLE)
+    out = Vector((math.cos(a), math.sin(a), 0))
+    post = Vector((O.x, O.y, 0)) + out * rail_r()
+    inward = -out
+    parts = [geo.box("GHookBar", (0.03, 0.03, 0.52), loc=(post.x, post.y, dz + 1.26), collection=col, mat=M["iron"])]
+    arm = geo.box("GHookArm", (0.03, 0.27, 0.025), collection=col, mat=M["iron"])
+    arm.location = post + inward * 0.13 + Vector((0, 0, dz + 1.5))
+    arm.rotation_euler = (0, 0, math.atan2(inward.y, inward.x) - math.pi / 2)
+    parts.append(arm)
+    hk = geo.lathe("GHookCurl", [(0.012, -0.03), (0.02, 0.0), (0.012, 0.01)], seg=8, collection=col, mat=M["iron"])
+    tip = post + inward * 0.26
+    hk.location = (tip.x, tip.y, dz + 1.48)
+    parts.append(hk)
+    geo.join(parts, "GalleryHook")
+    return Vector((tip.x, tip.y, dz + 1.465))
+
+
+def lanterns(wm, door=True, gallery=False, door_energy=14.0, gallery_energy=10.0):
+    """Dress the mill's practical lanterns: the porch lantern on the door hook and/or the north-gallery hook (with a
+    lantern on it when gallery='lantern'). Adds to wm: 'door_lantern', 'hook_n' (world ring point), 'gallery_lantern'."""
+    O = wm["origin"]
+    col = geo.coll("Windmill")
+    if door:
+        wm["door_lantern"] = hanging_lantern("PorchLanternWM", O + Vector(DOOR_HOOK), door_energy, 0.7, col=col)
+    if gallery:
+        wm["hook_n"] = gallery_hook(O, col, wm["mats"])
+        if gallery == "lantern":
+            wm["gallery_lantern"] = hanging_lantern("GalleryLantern", wm["hook_n"], gallery_energy, 0.6, col=col)
+    return wm
+
+
+# ===================================================================== sails: tips, spinning
+SAIL_TIP = 8.0           # stock length from the hub axis to the tip (m)
+
+
+def sail_dir_deg(k, sails_angle):
+    """Clock direction of sail k as seen from the south (in front): 0 = straight up, 90 = pointing west (viewer's
+    left), 180 = straight down, 270 = east. Sail k sits at k*90 + sails_angle."""
+    return (k * 90.0 + sails_angle) % 360.0
+
+
+def sail_down_index(sails_angle):
+    """Index of the sail pointing (most nearly) straight down at this sails_angle. Exactly down when
+    sails_angle = 180 - 90*k (mod 360): k=2 at 0 deg, k=1 at 90, k=0 at 180, k=3 at 270."""
+    return int(round((180.0 - sails_angle) / 90.0)) % 4
+
+
+def sails_angle_for(k, clock_deg):
+    """sails_angle that puts sail k at clock_deg (0 = up, 180 = down)."""
+    return (clock_deg - 90.0 * k) % 360.0
+
+
+def sail_tip(hub, sail_index, frame=None, along=SAIL_TIP, offset=(0.0, 0.0, 0.0)):
+    """World matrix at sail `sail_index`'s tip (or `along` metres out from the hub on its stock). Axes: +Y points
+    outward along the sail, +Z points forward (out of the sail face, toward the south/camera side), +X completes
+    (the canvas side). offset is in that frame (e.g. (0, 0, 0.2) = in front of the lattice). frame: evaluate the
+    animated sails at that frame (restores the current frame). Use .translation for the position."""
+    sc = bpy.context.scene
+    cur = sc.frame_current
+    if frame is not None and frame != cur:
+        sc.frame_set(frame)
+    bpy.context.view_layer.update()
+    arm = hub.children[[c.name.startswith(f"SailArm{sail_index}") for c in hub.children].index(True)]
+    m = arm.matrix_world @ Matrix.Translation((offset[0], along + offset[1], offset[2]))
+    if frame is not None and frame != cur:
+        sc.frame_set(cur)
+    return m.copy()
+
+
+def sail_tip_empty(hub, sail_index, along=SAIL_TIP, offset=(0.0, 0.0, 0.0), name=None):
+    """An Empty parented to sail `sail_index` at its tip (frame as in sail_tip): parent Claude (or a constraint
+    target) to it to ride the sail."""
+    arm = hub.children[[c.name.startswith(f"SailArm{sail_index}") for c in hub.children].index(True)]
+    e = bpy.data.objects.new(name or f"SailTip{sail_index}", None)
+    bpy.context.scene.collection.objects.link(e)
+    e.empty_display_size = 0.3
+    e.parent = arm
+    e.location = (offset[0], along + offset[1], offset[2])
+    return e
+
+
+def key_sails(hub, keys, interp="BEZIER"):
+    """Key the sails: keys = [(frame, sails_angle_deg), ...] (angles may exceed 360 to keep turning)."""
+    hub.rotation_mode = "XYZ"
+    for f, deg in keys:
+        hub.rotation_euler = (0, 0, math.radians(deg))
+        hub.keyframe_insert("rotation_euler", index=2, frame=f)
+    ad = hub.animation_data
+    if ad and ad.action and interp != "BEZIER":
+        for fc in _fcurves(hub):
+            if fc.data_path == "rotation_euler":
+                for kp in fc.keyframe_points:
+                    kp.interpolation = interp
+
+
+def spin_sails(hub, f0, f1, rpm=6.0, start_deg=None, ease_in=0.0, ease_out=0.0, fps=24):
+    """Turn the sails at a steady `rpm` between frames f0 and f1 with optional ease-in/out (seconds); keys every frame
+    (deterministic). Positive rpm = sails_angle increases = counter-clockwise as seen from the front (south), the
+    traditional direction: the 6 o'clock sail rises through the viewer's right (3 o'clock) to 12. Returns
+    [(frame, sails_angle)]."""
+    a0 = math.degrees(hub.rotation_euler.z) if start_deg is None else start_deg
+    w = rpm * 6.0       # deg/s
+    T = (f1 - f0) / fps
+    keys = []
+    for f in range(f0, f1 + 1):
+        t = (f - f0) / fps
+        # integrate a trapezoid speed profile
+        def v(tt):
+            s = 1.0
+            if ease_in > 0 and tt < ease_in:
+                s = tt / ease_in
+            if ease_out > 0 and tt > T - ease_out:
+                s = min(s, (T - tt) / ease_out)
+            return max(0.0, s)
+        n = 32
+        acc = sum(v(t * (i + 0.5) / n) for i in range(n)) * t / n if t > 0 else 0.0
+        keys.append((f, a0 + w * acc))
+    key_sails(hub, keys, interp="LINEAR")
+    return keys
+
+
+def _fcurves(idb):
+    ad = idb.animation_data
+    if not ad or not ad.action:
+        return []
+    act = ad.action
+    if hasattr(act, "fcurves"):
+        return list(act.fcurves)
+    out = []
+    for layer in getattr(act, "layers", []):
+        for strip in layer.strips:
+            for cb in getattr(strip, "channelbags", []):
+                out += list(cb.fcurves)
+    return out

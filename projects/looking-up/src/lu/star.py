@@ -30,7 +30,7 @@ DEFAULT = dict(
 
 GLOW_WARM = (1.0, 0.40, 0.05)
 GLOW_HOT = (1.0, 0.70, 0.24)
-GLOW_DIM = (0.34, 0.38, 0.46)
+GLOW_DIM = (0.46, 0.56, 0.78)     # a cooling, pale blue-white (not grey) as it fades
 
 
 def _profile(theta):
@@ -81,10 +81,73 @@ def star_material(name):
     strength = nb.math("MAXIMUM", strength, 0.06)
     em = nb.n("ShaderNodeEmission")
     nb.inp(em, "Color", col)
-    nb.inp(em, "Strength", nb.mul(strength, 0.62))
+    nb.inp(em, "Strength", nb.mul(strength, EMIT_GAIN))
     out = nb.n("ShaderNodeOutputMaterial")
     nb.link(em.outputs[0], out.inputs["Surface"])
     return m
+
+
+EMIT_GAIN = 0.46       # body emission (painted gold, not blown out; the halo + bloom carry the glow)
+LIGHT_SCALE = 7.0      # practical light (W at glow 1): a warm gradient across Claude's face, terminator intact
+HALO_R = 0.46          # glow halo sphere radius (m)
+LIGHT_REACH = 2.2      # star light cutoff distance (m)
+
+
+def halo_material(name):
+    """The glow in the air around the star: a soft camera-facing halo with faint sparkle spikes (the same painted
+    star motif as the constellation), gold when warm, pale and small as it dims. Reads 'glow'/'warmth' from the
+    halo object (driven from the body)."""
+    from . import props
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    t = m.node_tree
+    t.nodes.clear()
+    nb = mat.NB(t)
+    q, x, y, oi = props._sprite_frame(nb)
+    glow = nb.n("ShaderNodeAttribute", attribute_name="glow", attribute_type="OBJECT").outputs["Fac"]
+    warmth = nb.n("ShaderNodeAttribute", attribute_name="warmth", attribute_type="OBJECT").outputs["Fac"]
+    g = nb.math("MAXIMUM", glow, 0.0)
+    # the halo widens with joy and shrinks as it weakens
+    hw = nb.add(0.10, nb.mul(nb.math("MINIMUM", g, 2.0), 0.12))
+    halo = nb.math("MAXIMUM", nb.sub(nb.math("EXPONENT", nb.mul(nb.math("DIVIDE", q, hw), -1.0)),
+                                     nb.math("EXPONENT", nb.mul(nb.math("DIVIDE", 1.0, hw), -1.0))), 0.0)
+    ax, ay = nb.math("ABSOLUTE", x), nb.math("ABSOLUTE", y)
+    sp = nb.add(nb.mul(props._gauss(nb, y, 0.012), nb.math("POWER", nb.math("MAXIMUM", nb.sub(1.0, nb.mul(ax, 1.15)), 0.0), 3.0)),
+                nb.mul(props._gauss(nb, x, 0.012), nb.math("POWER", nb.math("MAXIMUM", nb.sub(1.0, nb.mul(ay, 1.15)), 0.0), 3.0)))
+    inten = nb.add(nb.mul(halo, 0.55), nb.mul(sp, nb.mul(nb.mapr(g, 0.6, 1.6), 0.35)))
+    inten = nb.mul(nb.mul(inten, nb.math("POWER", g, 1.3)), nb.mapr(q, 0.98, 0.8))
+    hot = nb.n("ShaderNodeRGB")
+    hot.outputs[0].default_value = (1.0, 0.62, 0.20, 1)
+    dim = nb.n("ShaderNodeRGB")
+    dim.outputs[0].default_value = (*GLOW_DIM, 1)
+    col = nb.mix(nb.sub(1.0, warmth), hot.outputs[0], dim.outputs[0])
+    em = nb.n("ShaderNodeEmission")
+    nb.inp(em, "Color", col)
+    nb.inp(em, "Strength", inten)
+    tr = nb.n("ShaderNodeBsdfTransparent")
+    add = nb.n("ShaderNodeAddShader")
+    nb.link(tr.outputs[0], add.inputs[0])
+    nb.link(em.outputs[0], add.inputs[1])
+    out = nb.n("ShaderNodeOutputMaterial")
+    nb.link(add.outputs[0], out.inputs["Surface"])
+    m.surface_render_method = "BLENDED"
+    m.use_backface_culling = True
+    return m
+
+
+def _drive_prop(target, prop, src, src_prop):
+    """target[prop] follows src[src_prop] (simple-expression driver: evaluated without Python)."""
+    target[prop] = float(src.get(src_prop, 1.0))
+    fc = target.driver_add(f'["{prop}"]')
+    dr = fc.driver
+    dr.type = "SCRIPTED"
+    dr.expression = "v"
+    v = dr.variables.new()
+    v.name = "v"
+    v.type = "SINGLE_PROP"
+    v.targets[0].id_type = "OBJECT"
+    v.targets[0].id = src
+    v.targets[0].data_path = f'["{src_prop}"]'
 
 
 class Star:
@@ -217,15 +280,36 @@ class Star:
         if light:
             ld = bpy.data.lights.new(name + "_light", "POINT")
             ld.color = GLOW_WARM
-            ld.energy = 60.0
-            ld.shadow_soft_size = 0.12
+            ld.energy = LIGHT_SCALE
+            ld.shadow_soft_size = 0.15
+            # a practical's pool of light, not a flood: influence ends LIGHT_REACH metres out (SH11 top-down)
+            if hasattr(ld, "use_custom_distance"):
+                ld.use_custom_distance = True
+                ld.cutoff_distance = LIGHT_REACH
             ld.use_shadow = True
             lo = bpy.data.objects.new(name + "_light", ld)
             col.objects.link(lo)
             lo.parent = rig
             lo.location = (0, -0.05, 0)
             self.light = lo
-        self.light_scale = 60.0
+        self.light_scale = LIGHT_SCALE
+        # ---------------- look: glow halo in the air (named Mote* so framing's occlusion/inside tests skip it)
+        import bmesh
+        bm = bmesh.new()
+        bmesh.ops.create_icosphere(bm, subdivisions=3, radius=HALO_R)
+        hme = bpy.data.meshes.new(name + "_halo")
+        bm.to_mesh(hme)
+        bm.free()
+        for f in hme.polygons:
+            f.use_smooth = True
+        hme.materials.append(halo_material(name + "_halo"))
+        ho = bpy.data.objects.new("MoteHalo_" + name, hme)
+        col.objects.link(ho)
+        ho.parent = rig
+        ho.visible_shadow = False
+        _drive_prop(ho, "glow", body, "glow")
+        _drive_prop(ho, "warmth", body, "warmth")
+        self.halo = ho
 
     # ------------------------------------------------------------------ posing
     def _set(self, bname, R):

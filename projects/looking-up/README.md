@@ -1,14 +1,15 @@
 # Looking Up
 
-A lonely miller (Claude) in a windmill above a sea of clouds takes in a tiny star that fell from the sky, and raises
-it until it has to be let go. A wordless 4-minute 3D short made in the painterly style of *The Wild Robot*.
+Claude lives alone on a windmill above the clouds, and its only friend is a constellation shaped like itself. One
+night the constellation's eye falls. Claude saves the tiny star, then rides a windmill sail into the sky to give it
+back. A wordless one-minute 3D short in the painterly style of *The Wild Robot*.
 
 ## Model
 
 - **Model:** Claude Opus 5.5 (`claude-opus-5-5`) in Claude Code
-- **Equivalent API cost:** ≈ $200: 0.77M output, 708M cache-read, 6.2M cache-write (5m) and 1.3M cache-write (1h)
-  tokens across the main session and its 5 subagents, at $4 / $20 per MTok in/out, $0.20 cache read and $5 / $8 cache
-  write (5m / 1h)
+- **Equivalent API cost:** ≈ $300: 0.88M output, 1,055M cache-read, 10.8M cache-write (5m) and 1.9M cache-write (1h)
+  tokens across the main session and its 10 subagents (v1 and the v2 rework), at $4 / $20 per MTok in/out, $0.20
+  cache read and $5 / $8 cache write (5m / 1h)
 
 ## Generate the video
 
@@ -25,7 +26,7 @@ From this folder:
 python3 src/render_all.py
 ```
 
-Renders all 44 shots into `out/frames/` (about 3.5 h at the default 24 samples on an M5 Pro; brush textures are
+Renders all 19 shots into `out/frames/` (about 1.5 h at the default 24 samples on an M5 Pro; brush textures are
 generated into `cache/` on first run). Re-running skips finished shots.
 
 ```bash
@@ -38,7 +39,7 @@ Builds the score, foley and mix into `out/audio/soundtrack.wav`.
 python3 src/assemble.py
 ```
 
-Writes `out/looking-up.mp4` (1920×1080, 24 fps, 2.35:1 letterbox, H.264 + AAC) with the title cards.
+Writes `out/looking-up.mp4` (1920×1080, 24 fps, 2.35:1 letterbox, H.264 + AAC) with the end title.
 
 Single shots, previews and animatics: `/Applications/Blender.app/Contents/MacOS/Blender -b --python
-src/render_shot.py -- M11 [--preview --stills 1.0,3.0] [--anim]`.
+src/render_shot.py -- SH08 [--preview --stills 1.0,3.0] [--anim]`.

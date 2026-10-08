@@ -28,6 +28,8 @@ mod = importlib.import_module(f"shots.{name.lower()}")
 ctx = mod.make(f0, f1)          # builds the world, characters, camera, keys; returns dict with 'post'
 from lu import finish, world as _world
 finish.apply(ctx, _world.World.current.kind if _world.World.current else "ext")
+if _world.World.current is not None and ctx.get("cull", True) and hasattr(_world.World.current, "cull_cover"):
+    _world.World.current.cull_cover(f0, f1 - 1)      # drop ground cover no camera of this shot sees
 post.setup(**ctx.get("post", {}))
 if animatic:
     sc.render.engine = "BLENDER_WORKBENCH"

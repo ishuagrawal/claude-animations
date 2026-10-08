@@ -76,6 +76,11 @@ def build(collection=None):
     grass = np.stack([0.30 + 0.06 * n1, 0.46 + 0.06 * n1 + 0.04 * n2, 0.12 + 0.02 * n2], 1)
     dry = np.clip(0.5 + 0.5 * _n2(x * 0.35, y * 0.35, 13), 0, 1)[:, None]
     grass = grass * (1 - 0.45 * dry) + np.array([0.55, 0.45, 0.16]) * 0.45 * dry
+    # under the dense meadow cover the ground is dark loam + thatch, so gaps between clumps read as depth, not as
+    # flat green paint; the bare shoulder beyond the cover keeps the lighter painted grass
+    loam = np.stack([0.11 + 0.03 * n2, 0.14 + 0.03 * n1, 0.06 + 0.01 * n2], 1)
+    under = np.clip((23.5 - r) / 3.0, 0, 1)[:, None]
+    grass = grass * (1 - 0.75 * under) + loam * 0.75 * under
     # dirt path from the windmill door (0, 7-3) toward the front edge, winding
     py = np.clip(y, -26, 4)
     pcx = 1.8 * np.sin(py * 0.18) - py * 0.06
@@ -83,7 +88,9 @@ def build(collection=None):
     path = np.clip(1 - (pd - 0.45) / 0.5, 0, 1) * (y < 4.5) * (y > -24)
     path *= np.clip(0.75 + 0.5 * n2, 0, 1)
     dirt = np.array([0.38, 0.27, 0.16])
-    col_ = grass * (1 - path[:, None]) + dirt * path[:, None]
+    rut = np.exp(-((pd - 0.2) / 0.06) ** 2) * 0.35 * (y < 4.0)      # two worn wheel/foot ruts
+    dirt_c = dirt[None, :] * (1 - rut[:, None]) + np.array([0.22, 0.15, 0.09])[None, :] * rut[:, None]
+    col_ = grass * (1 - path[:, None]) + dirt_c * path[:, None]
     rock = np.clip((r - (R_EDGE - 1.5)) / 3.0, 0, 1)
     rockc = np.array([0.40, 0.36, 0.38]) * (0.85 + 0.25 * n2[:, None])
     col_ = col_ * (1 - rock[:, None]) + rockc * rock[:, None]
