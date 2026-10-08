@@ -3,3 +3,30 @@ node_modules/
 dist/
 .env*
 *.log
+projects/*/out/
+
+# Project commits contain only source code + README (see CLAUDE.md)
+.claude/
+**/HANDOFF.md
+**/NOTES.md
+**/*.local.md
+projects/*/tmp/
+projects/*/cache/
+projects/*/stills/
+.venv/
+__pycache__/
+# binaries / media / renders
+*.mp4
+*.mov
+*.webm
+*.wav
+*.mp3
+*.aac
+*.m4a
+*.gif
+*.zip
+*.tar*
+projects/**/*.png
+projects/**/*.jpg
+projects/**/*.jpeg
+projects/**/*.webp
