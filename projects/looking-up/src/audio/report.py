@@ -18,22 +18,6 @@ PROJECT = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(PROJECT, "out", "audio")
 CACHE = os.path.join(PROJECT, "cache", "audio")
 
-SECTIONS = [   # (label, start bar, end bar, intent)
-    ("S01 dusk establishing", 1, 3.5, "quiet"), ("S02-S04 routine", 3.5, 7.75, "quiet"),
-    ("S05 constellation", 7.75, 9.5, "soft swell"), ("S06 sleep", 9.5, 10.5, "near-silence"),
-    ("S07 meteors", 10.5, 11.5, "rising"), ("S08 crash", 11.5, 12.25, "BIG hit"), ("S09 creeping", 12.25, 13.75, "tense"),
-    ("S10-S12 reveal/hiss/offer", 13.75, 17.5, "fragile"), ("S13 dawn trust", 17.5, 19, "soft"),
-    ("M01-M05 montage I", 19, 25.75, "warm, building"), ("M06 goodnight", 25.75, 27.25, "intimate"),
-    ("M07-M10 montage II", 27.25, 33, "varied"), ("M11 montage climax", 33, 35, "LOUD"),
-    ("D01-D04 dimming", 35, 41.5, "sparse"), ("H01-H02 the pull", 41.5, 43.75, "rising"),
-    ("H03 shutters/music box", 43.75, 45.25, "cut to almost nothing"), ("H04 the sky", 45.25, 46.25, "huge swell"),
-    ("H05 silence", 46.25, 48.5, "SILENCE"), ("L01-L03 resolve/launch", 48.5, 53.5, "building"),
-    ("L04-L05 storm", 53.5, 57, "intense"), ("L06 above the clouds", 57, 60, "tender, quiet"),
-    ("L07 ignition", 60, 61.5, "LOUDEST"), ("L08 guided home", 61.5, 63.5, "dark -> warm"),
-    ("C01 spring", 63.5, 66, "gentle"), ("C02 night blinks", 66, 69, "intimate"), ("C03 final", 69, 73, "warm, fade"),
-]
-
-
 def ffmpeg_loudness(path):
     r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-filter_complex", "ebur128=peak=true",
                         "-f", "null", "-"], capture_output=True, text=True)
@@ -64,7 +48,7 @@ def limiter_stats(out):
     except FileNotFoundError:
         return None
     pre = dsp.hp(pre, 22.0, order=2)
-    n = min(len(pre), len(out), int((cues.DURATION - 3.2) * SR))
+    n = min(len(pre), len(out), int((cues.DURATION - getattr(cues, "FADE_OUT", 3.0) - 0.2) * SR))
     blk = 480
     nb = n // blk
     a = np.abs(pre[:nb * blk]).max(axis=1).reshape(nb, blk).max(axis=1)
@@ -112,21 +96,19 @@ def main():
     hdr = f"{'':26s}{'mix RMS':>9s}{'peak':>7s}{'music':>8s}{'foley':>8s}{'amb':>8s}{'maxST':>8s}"
     print("\nper-section (dBFS RMS / peak; buses after master gain, before limiter; max short-term LUFS)")
     print(hdr + "   intent")
-    for (lab, b0, b1, intent) in SECTIONS:
-        v = row(cues.bar(b0), cues.bar(b1))
+    for (lab, t0, t1, intent) in cues.SECTIONS:
+        v = row(t0, t1)
         print(f"{lab:26s}" + "".join(f"{u:8.1f} " if i else f"{u:8.1f} " for i, u in enumerate(v)) + f"  {intent}")
     print("\nper-shot")
     print(hdr)
-    for (name, a, b, _d) in cues.SHOTS:
-        v = row(cues.bar(a), cues.bar(b))
+    for (name, *_r) in cues.SHOTS:
+        v = row(cues.start(name), cues.end(name))
         print(f"{name:26s}" + "".join(f"{u:8.1f} " for u in v))
-    print("\nsilence checks (mix RMS dBFS)")
-    for lab, t0, t1 in (("H05 silence (room tone only)", cues.end("H04") + 0.05, cues.SYNC["H05_drop"] + 3.9),
-                        ("L06 smash to silence", cues.end("L05") + 0.05, cues.end("L05") + 1.5),
-                        ("S06 near-silence", cues.start("S06"), cues.end("S06") - 0.8)):
+    print("\nsilence checks (RMS dBFS)")
+    for lab, t0, t1, bus in cues.SILENCE_CHECKS:
         a, b = int(t0 * SR), int(t1 * SR)
         mus = rms(np.asarray(buses["music"][a:b])) if "music" in buses else float("nan")
-        print(f"  {lab:32s} mix {rms(x[a:b]):6.1f}   music {mus:6.1f}")
+        print(f"  {lab:36s} mix {rms(x[a:b]):6.1f}   music {mus:6.1f}   ({t0:.2f}-{t1:.2f} s)")
     png = os.path.join(OUT, "spectrogram.png")
     spectrogram(path, png)
     print(f"\nspectrogram: {png}")

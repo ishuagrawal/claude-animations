@@ -1,4 +1,4 @@
-"""Procedural foley + ambience beds for "Looking Up", rendered from cues.py to out/audio/foley.wav (effects, with
+"""Procedural foley + ambience beds for "Looking Up" (v2), rendered from cues.py to out/audio/foley.wav (effects, with
 per-space reverb) and out/audio/ambience.wav (beds).
 
 Every effect is synthesised (filtered noise, modal resonators, stick-slip friction trains, FM chirps...) and is a
@@ -110,16 +110,6 @@ def fx_sail_creak(seed=0, dist=1.0, **_):
     return norm(y)
 
 
-def fx_sack_drag(dur=2.5, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    base = bp(brown(n, seed), 500, q=0.6) * 0.6 + bp(pink(n, seed + 1), 1400, q=0.8) * 0.4
-    push = 0.65 + 0.35 * np.abs(np.sin(np.pi * 2.0 * t)) + 0.15 * smooth_noise(n, 9, seed)
-    grit = grains(n, 140, seed + 2, dur_ms=(1, 4), band=(1200, 6000)) * 0.6
-    y = (base + grit) * push * env_bell(n, 0.5, 0.35)
-    return norm(lp(y, 5000))
-
-
 def fx_footstep(seed=0, surface="wood", soft=False, **_):
     n = int(0.18 * SR)
     t = np.arange(n) / SR
@@ -139,115 +129,12 @@ def fx_cloth_whoosh(dur=0.4, seed=0, **_):
     return norm(whoosh(dur, 400, 1800, q=0.9, seed=seed, peak_at=0.45))
 
 
-def fx_sack_thump(seed=0, **_):
-    n = int(0.6 * SR)
-    t = np.arange(n) / SR
-    body = np.sin(TWO_PI * (55 + 50 * np.exp(-t / 0.03)) * t) * np.exp(-t / 0.08)
-    nz = lp(white(n, seed), 500, order=2) * np.exp(-t / 0.05) * 0.8
-    sand = grains(n, 400, seed + 1, dur_ms=(1, 3), band=(1500, 6000), decay=0.12) * 0.35
-    return norm(body + nz + sand)
-
-
-def fx_dust_poof(seed=0, big=False, **_):
-    dur = 1.4 if big else 0.8
-    n = int(dur * SR)
-    y = bp(pink(n, seed), 1400, q=0.5) * env_exp(n, dur / 3.5, att=0.03)
-    return norm(lp(y, 4000))
-
-
 def fx_cloth_rustle(dur=0.5, seed=0, **_):
     n = int(dur * SR)
     src = hp(white(n, seed), 900)
     am = np.clip(smooth_noise(n, 22, seed) * 0.8 + 0.4, 0, None) ** 2
     y = lp(src * am, 5000) * env_bell(n, 0.35, 1.0)
     return norm(y)
-
-
-def fx_quilt_rustle(dur=0.5, seed=0, tremble=False, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    src = bp(pink(n, seed), 1100, q=0.6)
-    am = np.clip(smooth_noise(n, 12, seed) * 0.7 + 0.5, 0, None) ** 1.5
-    if tremble:
-        am *= 0.6 + 0.4 * np.sin(TWO_PI * 15 * t)
-    return norm(src * am * env_bell(n, 0.3, 0.9))
-
-
-def fx_cup_clink(seed=0, **_):
-    n = int(0.35 * SR)
-    y = modal(n, [2350, 3480, 5120, 6900], [1, .6, .4, .2], [0.09, 0.06, 0.04, 0.02], seed)
-    y += 0.3 * hp(white(n, seed), 3000) * env_exp(n, 0.002)
-    return norm(y)
-
-
-def fx_cup_set(seed=0, **_):
-    n = int(0.4 * SR)
-    knock = resonators(white(n, seed) * env_exp(n, 0.004), [260, 520, 1100], [6, 8, 10], [1, .6, .3])
-    ring = modal(n, [2200, 3300, 4700], [.5, .3, .2], [0.07, 0.05, 0.03], seed)
-    return norm(knock + ring)
-
-
-def fx_candle(dur=4.0, seed=0, **_):
-    n = int(dur * SR)
-    y = lp(brown(n, seed), 260) * (0.6 + 0.4 * smooth_noise(n, 5, seed))
-    y += grains(n, 1.5, seed + 1, dur_ms=(2, 5), band=(800, 3000)) * 0.6
-    return norm(dsp.fade(y, 0.4, 0.4))
-
-
-def fx_shutter_creak(dur=0.8, seed=0, pitch=1.0, **_):
-    n = int(dur * SR)
-    r = np.random.default_rng(seed)
-    f0 = r.uniform(380, 520) * pitch
-    ex = stick_slip(n, lambda t: f0 * (1 + 0.35 * math.sin(math.pi * t / dur) + 0.08 * math.sin(t * 23)), seed,
-                    jitter=0.08, amp_fn=lambda t: math.sin(math.pi * min(1, t / dur)) ** 0.5)
-    y = resonators(ex, [f0 * 1.0, f0 * 2.02, f0 * 3.1, 1500], [30, 25, 20, 6], [1, .5, .25, .3])
-    return norm(lp(y, 5000))
-
-
-def fx_shutter_thunk(seed=0, **_):
-    n = int(0.5 * SR)
-    t = np.arange(n) / SR
-    ex = white(n, seed) * env_exp(n, 0.003)
-    y = resonators(ex, [170, 390, 820, 1600], [5, 7, 9, 6], [1.2, 1, .6, .25])
-    y += 0.8 * np.sin(TWO_PI * (80 + 60 * np.exp(-t / 0.01)) * t) * np.exp(-t / 0.05)
-    return norm(y)
-
-
-def fx_lamp_blow(seed=0, **_):
-    n = int(0.6 * SR)
-    t = np.arange(n) / SR
-    breath = bp(white(n, seed), 2000, q=0.7) * np.clip(t / 0.05, 0, 1) * np.exp(-np.clip(t - 0.25, 0, None) / 0.08)
-    flutter = lp(white(n, seed + 1), 300) * (0.5 + 0.5 * np.sin(TWO_PI * 22 * t)) * np.exp(-t / 0.15) * 0.6
-    return norm(breath + flutter)
-
-
-def fx_breathing(dur=3.0, rate=0.25, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    cyc = np.sin(TWO_PI * rate * t) ** 2
-    y = bp(pink(n, seed), 900, q=0.5) * (0.15 + cyc) * (0.8 + 0.2 * smooth_noise(n, 1, seed))
-    return norm(dsp.fade(lp(y, 2500), 0.3, 0.3))
-
-
-def fx_meteor_swish(dur=0.7, seed=0, muffled=False, pan=0.0, **_):
-    r = np.random.default_rng(seed)
-    y = whoosh(dur, r.uniform(4000, 6000), r.uniform(500, 900), q=1.6, seed=seed, peak_at=0.35)
-    n = len(y)
-    y += 0.25 * grains(n, 60, seed + 1, dur_ms=(1, 3), band=(3000, 9000)) * env_bell(n, 0.3, 1.0)
-    if muffled:
-        y = lp(y, 650, order=2)
-    return norm(y)
-
-
-def fx_meteor_whistle(dur=1.6, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    u = t / dur
-    f = 700 * (2.6 ** u)
-    tone = np.sin(TWO_PI * np.cumsum(f) / SR) * (0.3 + 0.7 * u ** 2)
-    roar = dsp.sweep_filter(pink(n, seed), "lp", 300, 4000) * (0.1 + u ** 2.5)
-    crackle = grains(n, 200, seed + 1, dur_ms=(1, 3), band=(2000, 8000)) * u ** 2 * 0.3
-    return norm(0.5 * tone + roar + crackle)
 
 
 def fx_impact_boom(seed=0, **_):
@@ -260,63 +147,9 @@ def fx_impact_boom(seed=0, **_):
     return norm(y)
 
 
-def fx_wood_crack(seed=0, big=False, **_):
-    dur = 1.2 if big else 0.6
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    snap = hp(white(n, seed), 400) * np.exp(-t / 0.004)
-    split = grains(n, 900 if big else 500, seed + 1, dur_ms=(1, 4), band=(900, 6000), decay=0.12 if big else 0.07)
-    wood = resonators(white(n, seed + 2) * np.exp(-t / 0.01), [240, 610, 1300], [6, 8, 7], [1, .7, .4])
-    groan = 0.0
-    if big:
-        groan = resonators(stick_slip(n, lambda tt: 120 + 200 * math.exp(-tt / 0.2), seed + 3), [300, 700], [8, 8]) * \
-            np.exp(-t / 0.3)
-    return norm(1.4 * snap + split + wood + 0.5 * groan)
-
-
 def fx_sparks(dur=0.9, seed=0, **_):
     n = int(dur * SR)
     return norm(grains(n, 250, seed, dur_ms=(0.5, 2), band=(2500, 11000), decay=dur / 3))
-
-
-def fx_fall_whoosh(dur=0.3, seed=0, **_):
-    return norm(whoosh(max(dur, 0.15), 3000, 500, q=1.0, seed=seed, peak_at=0.8))
-
-
-def fx_flour_thud(seed=0, **_):
-    n = int(1.2 * SR)
-    t = np.arange(n) / SR
-    body = np.sin(TWO_PI * (48 + 60 * np.exp(-t / 0.02)) * t) * np.exp(-t / 0.12)
-    soft = lp(white(n, seed), 900, order=2) * np.exp(-t / 0.08)
-    return norm(np.tanh(2.0 * (body + 0.8 * soft)))
-
-
-def fx_flour_poof(seed=0, **_):
-    n = int(2.0 * SR)
-    y = bp(pink(n, seed), 900, q=0.45) * env_exp(n, 0.5, att=0.015)
-    return norm(lp(y, 3500))
-
-
-def fx_star_sizzle(dur=2.0, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    y = grains(n, 180, seed, dur_ms=(0.5, 2), band=(2500, 10000)) * (0.4 + 0.6 * np.exp(-t / 0.6))
-    y += 0.15 * hp(white(n, seed + 1), 5000) * np.exp(-t / 0.8)
-    return norm(dsp.fade(y, 0.01, 0.4))
-
-
-def fx_splinter_clatter(dur=1.0, seed=0, **_):
-    n = int(dur * SR)
-    r = np.random.default_rng(seed)
-    y = np.zeros(n, np.float32)
-    for k in range(14):
-        t0 = r.uniform(0, dur * 0.9) ** 1.3 / dur ** 0.3
-        i = int(t0 * SR)
-        m = int(0.05 * SR)
-        if i + m < n:
-            ex = white(m, seed + k) * env_exp(m, 0.002)
-            y[i:i + m] += r.uniform(0.3, 1.0) * np.exp(-t0 / 0.6) * resonators(ex, [r.uniform(900, 3200)], [9])
-    return norm(y)
 
 
 def fx_floor_creak(seed=0, **_):
@@ -324,29 +157,6 @@ def fx_floor_creak(seed=0, **_):
     ex = stick_slip(n, lambda t: 70 + 60 * math.sin(math.pi * t / 0.7), seed,
                     amp_fn=lambda t: math.sin(math.pi * t / 0.7))
     return norm(resonators(ex, [210, 470, 900], [10, 12, 9], [1, .7, .4]))
-
-
-def fx_star_hum(dur=4.0, seed=0, flicker=False, **_):
-    """The star's voice: a warm, faintly beating tone (E) with a soft sizzle."""
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    y = np.zeros(n)
-    for f, a, beat in ((329.6, 1.0, 0.6), (493.9, 0.5, 0.9), (659.3, 0.35, 1.3), (987.8, 0.15, 1.7)):
-        y += a * (np.sin(TWO_PI * f * t) + np.sin(TWO_PI * (f + beat) * t + 1.3)) * 0.5
-    am = 1 + 0.12 * np.sin(TWO_PI * 1.1 * t)
-    if flicker:
-        am *= 1 + 0.12 * np.sin(t * 31) + 0.08 * np.sin(t * 13.7)
-    y = y * am + 0.35 * grains(n, 40, seed, dur_ms=(0.5, 2), band=(3000, 9000))
-    return norm(dsp.fade(y, 0.25, 0.4))
-
-
-def fx_flare_whoomph(seed=0, **_):
-    n = int(1.0 * SR)
-    t = np.arange(n) / SR
-    y = dsp.sweep_filter_fn(pink(n, seed), "bp", lambda tt: 180 + 900 * math.sin(math.pi * min(1, tt / 0.5)), q=0.8)
-    y *= np.clip(t / 0.04, 0, 1) * np.exp(-t / 0.22)
-    y += 0.4 * grains(n, 300, seed + 1, dur_ms=(0.5, 2), band=(2500, 9000), decay=0.25)
-    return norm(y)
 
 
 def fx_tremble_tinkle(dur=2.0, seed=0, **_):
@@ -363,126 +173,10 @@ def fx_tremble_tinkle(dur=2.0, seed=0, **_):
     return norm(dsp.fade(y, 0.2, 0.3))
 
 
-def fx_smoke_hiss(dur=2.0, seed=0, **_):
-    n = int(dur * SR)
-    y = hp(white(n, seed), 3500) * (0.7 + 0.3 * smooth_noise(n, 3, seed))
-    return norm(dsp.fade(lp(y, 9000), 0.3, min(1.0, dur / 2)))
-
-
-def fx_straw_rustle(dur=1.5, seed=0, **_):
-    n = int(dur * SR)
-    y = grains(n, 160, seed, dur_ms=(2, 6), band=(1500, 7000)) * (0.6 + 0.4 * smooth_noise(n, 6, seed))
-    return norm(dsp.fade(y, 0.2, 0.3))
-
-
-def fx_broom_clack(seed=0, **_):
-    n = int(0.4 * SR)
-    a = resonators(white(n, seed) * env_exp(n, 0.002), [650, 1450, 2600], [10, 12, 8], [1, .7, .3])
-    b = np.zeros(n, np.float32)
-    k = int(0.085 * SR)
-    b[k:] = 0.4 * a[:n - k]
-    return norm(a + b)
-
-
-def fx_hiss_crackle(seed=0, **_):
-    n = int(1.1 * SR)
-    t = np.arange(n) / SR
-    hiss = hp(white(n, seed), 2500) * np.clip(t / 0.008, 0, 1) * np.exp(-t / 0.28)
-    crack = grains(n, 600, seed + 1, dur_ms=(0.5, 2.5), band=(1500, 9000), decay=0.2)
-    pop = lp(white(n, seed + 2), 700) * np.exp(-t / 0.03)
-    return norm(hiss + 0.9 * crack + 0.6 * pop)
-
-
-def fx_yank_whoosh(seed=0, **_):
-    return norm(whoosh(0.22, 2500, 700, q=1.3, seed=seed, peak_at=0.3))
-
-
-def fx_arm_flaps(dur=0.8, rate=6.0, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    src = bp(pink(n, seed), 1200, q=0.8)
-    am = np.abs(np.sin(np.pi * rate * t)) ** 3
-    return norm(src * am * env_bell(n, 0.4, 0.6))
-
-
-def fx_bowl_clunk(seed=0, **_):
-    n = int(0.5 * SR)
-    y = resonators(white(n, seed) * env_exp(n, 0.003), [190, 480, 1050], [8, 9, 10], [1, .6, .4])
-    y += 0.5 * modal(n, [1250, 2650], [.4, .2], [0.08, 0.05], seed)
-    return norm(y)
-
-
-def fx_water_slosh(seed=0, **_):
-    n = int(0.5 * SR)
-    r = np.random.default_rng(seed)
-    y = bp(pink(n, seed), 700, q=0.7) * env_bell(n, 0.2, 1.5) * 0.4
-    for k in range(5):
-        i = int(r.uniform(0, 0.3) * SR)
-        m = int(0.06 * SR)
-        tt = np.arange(m) / SR
-        f = r.uniform(500, 1100) * (1 + 3 * tt)
-        if i + m < n:
-            y[i:i + m] += np.sin(TWO_PI * np.cumsum(f) / SR) * np.exp(-tt / 0.015) * r.uniform(0.3, 1)
-    return norm(y)
-
-
-def fx_blanket_slide(dur=0.4, seed=0, **_):
-    n = int(dur * SR)
-    y = bp(pink(n, seed), 1600, q=0.6) * env_bell(n, 0.3, 1.0)
-    return norm(y)
-
-
-def fx_stove(dur=4.0, seed=0, **_):
-    n = int(dur * SR)
-    fire = lp(brown(n, seed), 180) * (0.6 + 0.4 * smooth_noise(n, 2, seed)) * 0.6
-    cr = grains(n, 9, seed + 1, dur_ms=(1, 6), band=(700, 5000))
-    pops = grains(n, 0.8, seed + 2, dur_ms=(4, 12), band=(300, 1500)) * 1.5
-    return norm(dsp.fade(fire + cr + pops, 0.3, 0.3))
-
-
-def fx_star_breath(dur=2.4, rate=2.1, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    sw = 0.5 + 0.5 * np.sin(rate * t - 1.2)
-    y = (np.sin(TWO_PI * 1318.5 * t) + 0.6 * np.sin(TWO_PI * 1975.5 * t + 1) + 0.3 * np.sin(TWO_PI * 2637 * t)) * sw ** 2
-    y += 0.3 * bp(white(n, seed), 3000, q=1.5) * sw ** 2
-    return norm(dsp.fade(y, 0.3, 0.5))
-
-
-def fx_hammer_tap(seed=0, **_):
-    n = int(0.45 * SR)
-    r = np.random.default_rng(seed)
-    y = modal(n, [2310 * r.uniform(0.98, 1.02), 3870, 6150, 8300], [1, .6, .35, .15], [0.12, 0.08, 0.05, 0.03], seed)
-    y += 0.7 * resonators(white(n, seed) * env_exp(n, 0.002), [420, 900], [6, 6])
-    return norm(y)
-
-
-def fx_lantern_door(seed=0, **_):
-    n = int(0.35 * SR)
-    sq = resonators(stick_slip(n, lambda t: 900 + 400 * t, seed, jitter=0.05,
-                               amp_fn=lambda t: math.sin(math.pi * min(1, t / 0.25))), [1800, 3600], [25, 20])
-    click = modal(n, [3100, 5200], [.6, .3], [0.02, 0.012], seed)
-    k = int(0.27 * SR)
-    sq[k:] += click[:n - k]
-    return norm(sq)
-
-
 def fx_hop_whoosh(seed=0, **_):
     y = whoosh(0.28, 900, 3500, q=1.0, seed=seed, peak_at=0.5)
     n = len(y)
     y += 0.2 * grains(n, 40, seed + 1, dur_ms=(1, 3), band=(4000, 9000))
-    return norm(y)
-
-
-def fx_glass_tinkle(seed=0, **_):
-    n = int(0.6 * SR)
-    r = np.random.default_rng(seed)
-    y = np.zeros(n, np.float32)
-    for k in range(6):
-        i = int(r.uniform(0, 0.18) * SR)
-        m = n - i
-        y[i:] += modal(m, [r.uniform(2400, 7000), r.uniform(5000, 9000)], [1, .4], [0.08, 0.04], seed + k) * \
-            r.uniform(0.3, 1.0)
     return norm(y)
 
 
@@ -492,15 +186,6 @@ def fx_flower_thump(seed=0, **_):
     thud = np.sin(TWO_PI * (90 + 70 * np.exp(-t / 0.01)) * t) * np.exp(-t / 0.04)
     leaves = bp(white(n, seed), 3000, q=0.7) * env_exp(n, 0.09, att=0.004) * 0.6
     return norm(thud + leaves)
-
-
-def fx_sparkle(seed=0, **_):
-    n = int(0.7 * SR)
-    y = np.zeros(n, np.float32)
-    for k in range(8):
-        i = int(k * 0.05 * SR)
-        y[i:] += modal(n - i, [2000 * 1.18 ** k], [1.0 - 0.06 * k], [0.12], seed + k)
-    return norm(y)
 
 
 def fx_sparkle_whoosh(dur=3.0, seed=0, **_):
@@ -518,53 +203,8 @@ def fx_sparkle_whoosh(dur=3.0, seed=0, **_):
     return np.stack([y * np.sqrt(0.5 * (1 - p)), y * np.sqrt(0.5 * (1 + p))], axis=1) / (np.max(np.abs(y)) + 1e-9)
 
 
-def fx_stitch(seed=0, **_):
-    n = int(0.25 * SR)
-    pull = bp(white(n, seed), 2600, q=1.5) * env_bell(n, 0.25, 1.2)
-    tick = modal(n, [4200], [0.4], [0.01], seed)
-    return norm(pull + tick)
-
-
-def fx_sheet_whoosh(seed=0, **_):
-    n = int(0.9 * SR)
-    t = np.arange(n) / SR
-    y = dsp.sweep_filter(pink(n, seed), "bp", 300, 2400, q=0.7) * env_bell(n, 0.4, 1.2)
-    flap = bp(white(n, seed + 1), 900, q=0.8) * np.exp(-np.abs(t - 0.42) / 0.012) * 1.5
-    return norm(y + flap)
-
-
-def fx_sneeze_puff(seed=0, **_):
-    n = int(0.4 * SR)
-    t = np.arange(n) / SR
-    tch = bp(white(n, seed), 3800, q=1.0) * np.clip(t / 0.004, 0, 1) * np.exp(-t / 0.05)
-    puff = lp(pink(n, seed + 1), 900) * np.exp(-t / 0.08) * 0.6
-    return norm(tch + puff)
-
-
-def fx_metal_tink(seed=0, **_):
-    n = int(0.3 * SR)
-    return norm(modal(n, [3300, 5600, 7900], [1, .5, .25], [0.05, 0.03, 0.02], seed))
-
-
-def fx_snow_crunch(seed=0, **_):
-    n = int(0.22 * SR)
-    y = grains(n, 900, seed, dur_ms=(0.5, 2), band=(1200, 7000)) * env_exp(n, 0.06, att=0.005)
-    t = np.arange(n) / SR
-    y += 0.4 * np.sin(TWO_PI * 110 * t) * np.exp(-t / 0.02)
-    return norm(y)
-
-
 def fx_throw_whoosh(seed=0, **_):
     return norm(whoosh(0.4, 600, 2600, q=1.1, seed=seed, peak_at=0.35))
-
-
-def fx_steam_sizzle(seed=0, **_):
-    n = int(1.2 * SR)
-    t = np.arange(n) / SR
-    siz = grains(n, 800, seed, dur_ms=(0.5, 2), band=(2500, 10000), decay=0.35)
-    hiss = hp(white(n, seed + 1), 3000) * np.clip(t / 0.01, 0, 1) * np.exp(-t / 0.35) * 0.6
-    puff = bp(pink(n, seed + 2), 900, q=0.5) * env_exp(n, 0.25, att=0.03) * 0.5
-    return norm(siz + hiss + puff)
 
 
 def fx_fireflies(dur=4.0, seed=0, **_):
@@ -582,25 +222,6 @@ def fx_fireflies(dur=4.0, seed=0, **_):
     return norm(dsp.fade(y, 0.3, 0.5))
 
 
-def fx_bench_tap(seed=0, **_):
-    n = int(0.25 * SR)
-    r = np.random.default_rng(seed)
-    return norm(resonators(white(n, seed) * env_exp(n, 0.002), [r.uniform(700, 1100), r.uniform(1800, 2600)], [9, 10]))
-
-
-def fx_telescope_squeak(seed=0, **_):
-    n = int(0.3 * SR)
-    ex = stick_slip(n, lambda t: 1300 + 500 * t, seed, jitter=0.05, amp_fn=lambda t: math.sin(math.pi * min(1, t / 0.3)))
-    return norm(resonators(ex, [1300, 2600], [30, 20]))
-
-
-def fx_lamp_clink(seed=0, **_):
-    n = int(0.6 * SR)
-    glass = modal(n, [2900, 4400, 6300, 8100], [1, .55, .3, .15], [0.15, 0.1, 0.06, 0.04], seed)
-    knock = resonators(white(n, seed) * env_exp(n, 0.003), [380, 950], [7, 8], [1, .5])
-    return norm(glass + 0.8 * knock)
-
-
 def fx_star_rise(dur=2.5, seed=0, **_):
     n = int(dur * SR)
     t = np.arange(n) / SR
@@ -611,99 +232,6 @@ def fx_star_rise(dur=2.5, seed=0, **_):
         y += np.sin(TWO_PI * np.cumsum(f) / SR + k) / (k + 1)
     y = y * (0.6 + 0.4 * np.sin(TWO_PI * 7 * t)) + 0.4 * dsp.sweep_filter(white(n, seed), "bp", 1500, 6000, q=2.0)
     return norm(dsp.fade(y * env_bell(n, 0.7, 1.0), 0.05, 0.3))
-
-
-def fx_chair_scrape(seed=0, **_):
-    n = int(0.35 * SR)
-    ex = stick_slip(n, lambda t: 140 + 100 * t, seed, amp_fn=lambda t: math.sin(math.pi * t / 0.35))
-    y = resonators(ex, [320, 760, 1500], [8, 9, 7]) + 0.3 * bp(pink(n, seed), 600, q=0.8) * env_bell(n, 0.4, 1)
-    return norm(y)
-
-
-def fx_top_flick(seed=0, **_):
-    n = int(0.2 * SR)
-    return norm(resonators(white(n, seed) * env_exp(n, 0.0015), [1500, 3200], [10, 12]))
-
-
-def fx_top_whir(dur=2.4, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    spin = 26 - 6 * t / dur
-    f = 240 + 20 * np.sin(TWO_PI * 1.3 * t)
-    tone = sum(np.sin(TWO_PI * np.cumsum(f * h) / SR) / h for h in (1, 2, 3))
-    y = tone * (0.7 + 0.3 * np.sin(TWO_PI * np.cumsum(spin) / SR))
-    y += 0.4 * bp(white(n, seed), 1800, q=1.0) * (0.6 + 0.4 * np.sin(TWO_PI * np.cumsum(spin) / SR))
-    return norm(dsp.fade(lp(y, 4000), 0.04, 0.4))
-
-
-def fx_drop_thud(seed=0, **_):
-    n = int(0.5 * SR)
-    t = np.arange(n) / SR
-    thud = np.sin(TWO_PI * (110 + 50 * np.exp(-t / 0.01)) * t) * np.exp(-t / 0.05)
-    tink = modal(n, [3600, 5100], [.25, .12], [0.05, 0.03], seed)
-    return norm(thud + tink + 0.3 * lp(white(n, seed), 700) * np.exp(-t / 0.02))
-
-
-def fx_page_turn(seed=0, **_):
-    n = int(0.45 * SR)
-    y = hp(white(n, seed), 1500) * (0.4 + np.clip(smooth_noise(n, 30, seed), 0, None)) * env_bell(n, 0.6, 1.2)
-    return norm(lp(y, 9000))
-
-
-def fx_canvas_rip(dur=0.7, seed=0, **_):
-    n = int(dur * SR)
-    ex = stick_slip(n, lambda t: 350 + 400 * math.sin(math.pi * t / dur), seed, jitter=0.5,
-                    amp_fn=lambda t: 0.4 + 0.6 * math.sin(math.pi * t / dur))
-    y = bp(ex, 2200, q=0.5) + 0.5 * bp(white(n, seed + 1), 1500, q=0.8) * env_bell(n, 0.5, 1.0)
-    return norm(y)
-
-
-def fx_rope_creak(seed=0, **_):
-    n = int(0.8 * SR)
-    ex = stick_slip(n, lambda t: 55 + 50 * math.sin(math.pi * t / 0.8), seed, jitter=0.3,
-                    amp_fn=lambda t: math.sin(math.pi * t / 0.8))
-    return norm(resonators(ex, [180, 410, 820], [9, 10, 8], [1, .7, .4]))
-
-
-def fx_canvas_fill(dur=1.5, seed=0, **_):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    y = dsp.sweep_filter(pink(n, seed), "bp", 200, 900, q=0.6) * env_bell(n, 0.6, 0.8)
-    y *= 0.7 + 0.3 * np.abs(np.sin(np.pi * 8 * t))
-    return norm(y)
-
-
-def fx_thunder(seed=0, **_):
-    n = int(6.0 * SR)
-    t = np.arange(n) / SR
-    r = np.random.default_rng(seed)
-    rumble = hp(lp(brown(n, seed), 160, order=2), 38, order=2)
-    roll = np.clip(smooth_noise(n, 3.5, seed) * 0.6 + 0.6, 0, None) ** 2
-    e = np.clip(t / 0.05, 0, 1) * np.exp(-t / 1.3)
-    crack = hp(white(n, seed + 1), 300) * np.exp(-t / 0.08) * r.uniform(0.6, 1.0)
-    mid = bp(white(n, seed + 2), 600, q=0.5) * np.exp(-t / 0.5) * 0.5
-    y = np.tanh(1.6 * (rumble * roll * e * 2.5 + crack + mid))
-    return norm(y)
-
-
-def fx_canvas_flap(dur=4.0, seed=0, **_):
-    n = int(dur * SR)
-    src = bp(pink(n, seed), 650, q=0.5)
-    rate = 6 + 3 * smooth_noise(n, 0.7, seed)
-    ph = np.cumsum(rate) / SR
-    am = np.abs(np.sin(np.pi * ph)) ** 4 * (0.6 + 0.4 * smooth_noise(n, 1.5, seed + 1))
-    return norm(dsp.fade(src * am, 0.2, 0.3))
-
-
-def fx_telescope_toss(seed=0, **_):
-    n = int(2.2 * SR)
-    t = np.arange(n) / SR
-    w = np.zeros(n, np.float32)
-    w[:int(0.45 * SR)] = whoosh(0.45, 700, 2400, q=1.0, seed=seed, peak_at=0.4)
-    f = 1500 * 0.55 ** (t / 2.2)
-    fall = np.sin(TWO_PI * np.cumsum(f) / SR) * np.clip((t - 0.3) / 0.2, 0, 1) * np.exp(-(t - 0.3).clip(0) / 0.9) * 0.4
-    tumble = bp(white(n, seed + 1), 1100, q=2) * (0.5 + 0.5 * np.sin(TWO_PI * 5 * t)) * np.exp(-t / 0.8) * 0.3
-    return norm(w + fall + tumble)
 
 
 def fx_ignition(seed=0, **_):
@@ -721,58 +249,223 @@ def fx_ignition(seed=0, **_):
     return norm(rise + 2.0 * sh + boom)
 
 
-def fx_beam_shimmer(dur=3.0, seed=0, **_):
+
+# ---------------------------------------------------------------------------------------------- v2 effects
+def fx_grass_rustle(dur=0.6, seed=0, **_):
+    n = int(dur * SR)
+    src = bp(white(n, seed), 3600, q=0.7)
+    am = np.clip(smooth_noise(n, 18, seed) * 0.8 + 0.35, 0, None) ** 2
+    swish = bp(pink(n, seed + 1), 900, q=0.6) * 0.3
+    return norm((src * am + swish) * env_bell(n, 0.35, 0.8))
+
+
+def fx_lantern_creak(seed=0, fast=False, **_):
+    """Brass lantern swinging on its hook/handle: a short metallic stick-slip squeak with a faint rattle."""
+    dur = 0.22 if fast else 0.45
+    n = int(dur * SR)
+    r = np.random.default_rng(seed)
+    f0 = r.uniform(520, 760)
+    ex = stick_slip(n, lambda t: f0 * (0.8 + 0.4 * math.sin(math.pi * t / dur)), seed, jitter=0.12,
+                    amp_fn=lambda t: math.sin(math.pi * min(1, t / dur)) ** 0.6)
+    y = resonators(ex, [f0 * 2.0, f0 * 3.3, 2700, 4100], [30, 25, 18, 14], [1, .5, .35, .2])
+    y += 0.2 * modal(n, [2350, 3900], [.4, .2], [0.03, 0.02], seed)
+    return norm(lp(y, 7000))
+
+
+def fx_sparkle_ting(seed=0, **_):
+    """A tiny bell sparkle (the star's twinkle): a few high glassy pings in quick succession + shimmer."""
+    n = int(1.0 * SR)
+    r = np.random.default_rng(seed)
+    y = np.zeros(n, np.float32)
+    for k in range(4):
+        i = int(k * r.uniform(0.02, 0.05) * SR)
+        y[i:] += modal(n - i, [r.uniform(4200, 8800), r.uniform(6000, 10000)], [1.0 - 0.15 * k, 0.3], [0.18, 0.08],
+                       seed + k)
+    y += 0.06 * hp(white(n, seed), 6000) * env_exp(n, 0.12, att=0.01)
+    return norm(y)
+
+
+def fx_sputter(dur=0.6, seed=0, **_):
+    """A failing glow: irregular fizz bursts (a light trying to stay lit)."""
+    n = int(dur * SR)
+    gate = (smooth_noise(n, 22, seed) > 0.05).astype(np.float32)
+    gate = np.convolve(gate, np.ones(96) / 96, mode="same")
+    fizz = grains(n, 900, seed + 1, dur_ms=(0.3, 1.5), band=(3000, 11000)) + 0.3 * hp(white(n, seed + 2), 5000)
+    return norm(fizz * gate * env_bell(n, 0.3, 0.6))
+
+
+def fx_streak_whoosh(dur=1.6, direction="down", seed=0, **_):
+    """A falling (or rising) star: a long whoosh with a gliding whistle and a crackling sparkle trail."""
     n = int(dur * SR)
     t = np.arange(n) / SR
-    r = np.random.default_rng(seed)
-    y = np.zeros(n)
-    for k in range(16):
-        f = r.uniform(2500, 7000)
-        y += np.sin(TWO_PI * f * t) * (0.5 + 0.5 * np.sin(TWO_PI * r.uniform(0.5, 2) * t + k))
-    return norm(y * env_bell(n, 0.4, 1.0))
+    u = t / dur
+    f0, f1 = (5200.0, 380.0) if direction == "down" else (450.0, 5200.0)
+    body = dsp.sweep_filter(pink(n, seed), "bp", f0, f1, q=1.4)
+    wf = (1900 * (0.3 ** u)) if direction == "down" else (500 * (4.0 ** u))
+    whistle = np.sin(TWO_PI * np.cumsum(wf) / SR) * 0.25
+    trail = grains(n, 260, seed + 1, dur_ms=(0.4, 1.8), band=(3500, 11000)) * 0.45
+    e = np.clip(u / 0.12, 0, 1) ** 1.5 * (np.clip((1 - u) / 0.15, 0, 1) if direction == "down" else
+                                          (0.4 + 0.6 * u ** 1.5))
+    y = (body + whistle + trail) * e
+    p = (-0.5 + 1.0 * u) if direction == "down" else (0.3 - 0.3 * u)
+    return np.stack([y * np.sqrt(0.5 * (1 - p)), y * np.sqrt(0.5 * (1 + p))], axis=1) / (np.max(np.abs(y)) + 1e-9)
 
 
-def fx_landing_thump(seed=0, **_):
-    n = int(1.0 * SR)
+def fx_lantern_grab(seed=0, **_):
+    n = int(0.5 * SR)
+    clank = modal(n, [1250, 2950, 4400, 6100], [1, .6, .35, .2], [0.08, 0.05, 0.035, 0.02], seed)
+    thump = resonators(white(n, seed) * env_exp(n, 0.002), [480, 1100], [7, 8], [1, .5])
+    squeak = np.zeros(n, np.float32)
+    c = fx_lantern_creak(seed + 1, fast=True)
+    i = int(0.06 * SR)
+    k = min(len(c), n - i)
+    squeak[i:i + k] = 0.5 * c[:k]
+    return norm(clank + 0.6 * thump + squeak)
+
+
+def fx_skid(seed=0, **_):
+    n = int(0.45 * SR)
+    y = dsp.sweep_filter(pink(n, seed), "bp", 1600, 350, q=0.9) * env_bell(n, 0.25, 0.9)
+    y += 0.5 * grains(n, 500, seed + 1, dur_ms=(0.5, 2), band=(1200, 6000), decay=0.25)
     t = np.arange(n) / SR
-    thud = np.sin(TWO_PI * (55 + 50 * np.exp(-t / 0.02)) * t) * np.exp(-t / 0.12)
-    wicker = grains(n, 500, seed, dur_ms=(1, 4), band=(800, 4000), decay=0.12) * 0.6
-    return norm(np.tanh(1.5 * (thud + 0.5 * lp(white(n, seed + 1), 600) * np.exp(-t / 0.05))) + wicker)
+    y += 0.5 * np.sin(TWO_PI * 130 * t) * np.exp(-np.abs(t - 0.36) / 0.02) * (t > 0.34)
+    return norm(y)
+
+
+def fx_crater(dur=6.0, seed=0, **_):
+    """The smoking crater: embers ticking, a soft hot hiss and an occasional ember pop over a low smoulder."""
+    n = int(dur * SR)
+    embers = grains(n, 45, seed, dur_ms=(0.4, 2.0), band=(2500, 9000))
+    pops = grains(n, 1.2, seed + 1, dur_ms=(3, 9), band=(500, 2500)) * 1.6
+    hiss = hp(white(n, seed + 2), 4500) * 0.12 * (0.7 + 0.3 * smooth_noise(n, 2, seed))
+    smoulder = lp(brown(n, seed + 3), 220) * 0.25 * (0.6 + 0.4 * smooth_noise(n, 1, seed + 4))
+    return norm(dsp.fade(embers + pops + hiss + smoulder, 0.3, 0.6))
+
+
+# the star's tiny bell-like "voice": (notes as (pitch Hz, start s, length s), vibrato Hz, vibrato depth cents)
+_VOICE = {
+    "scared": ([(1480, 0.0, 0.16), (1319, 0.13, 0.16), (1175, 0.27, 0.32)], 9.0, 35),
+    "flinch": ([(1760, 0.0, 0.07), (2349, 0.05, 0.12)], 0.0, 0),
+    "ask": ([(1175, 0.0, 0.14), (1760, 0.13, 0.32)], 5.5, 15),
+    "happy": ([(1175, 0.0, 0.1), (1480, 0.08, 0.1), (1760, 0.16, 0.35)], 6.0, 12),
+    "giggle": ([(1760, 0.0, 0.07), (1480, 0.08, 0.07), (1760, 0.16, 0.07), (1480, 0.24, 0.07), (1319, 0.32, 0.18)],
+               0.0, 0),
+    "sad": ([(1480, 0.0, 0.35), (1175, 0.3, 0.6)], 5.0, 25),
+    "tender": ([(1760, 0.0, 0.25), (1480, 0.22, 0.55)], 4.5, 10),
+}
+
+
+def fx_star_voice(mood="happy", seed=0, **_):
+    notes, vib, depth = _VOICE[mood]
+    total = max(s + d for _, s, d in notes) + 0.5
+    n = int(total * SR)
+    y = np.zeros(n)
+    for k, (f, s, d) in enumerate(notes):
+        i = int(s * SR)
+        m_ = int((d + 0.45) * SR)
+        m_ = min(m_, n - i)
+        tt = np.arange(m_) / SR
+        slide = 1.0 + (0.04 if mood == "sad" and k == 1 else 0.0) * np.exp(-tt / 0.08)
+        fv = f * slide * 2 ** (depth * np.sin(TWO_PI * vib * tt) / 1200) if vib else f * slide
+        ph = TWO_PI * np.cumsum(fv) / SR
+        tone = np.sin(ph) + 0.28 * np.sin(2 * ph + 0.4) + 0.08 * np.sin(3 * ph) + 0.05 * np.sin(4.17 * ph)
+        e = np.clip(tt / 0.006, 0, 1) * np.where(tt < d, 1.0, np.exp(-(tt - d) / 0.09)) * np.exp(-tt / (d + 0.3))
+        breath = bp(white(m_, seed + k), f, q=6) * 0.35
+        y[i:i + m_] += (tone + breath) * e
+    return norm(y)
+
+
+def fx_lantern_set(seed=0, **_):
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    thud = np.sin(TWO_PI * (150 + 60 * np.exp(-t / 0.01)) * t) * np.exp(-t / 0.035)
+    rattle = modal(n, [2100, 3300, 5200], [.5, .3, .15], [0.05, 0.035, 0.02], seed)
+    glass = modal(n, [4700], [0.2], [0.04], seed + 1)
+    return norm(thud + rattle + glass + 0.3 * grains(n, 200, seed, dur_ms=(1, 3), band=(1500, 5000), decay=0.05))
+
+
+def fx_soft_pat(seed=0, **_):
+    n = int(0.25 * SR)
+    t = np.arange(n) / SR
+    y = np.sin(TWO_PI * (180 + 80 * np.exp(-t / 0.008)) * t) * np.exp(-t / 0.03)
+    y += 0.4 * bp(white(n, seed), 1200, q=0.8) * np.exp(-t / 0.015)
+    return norm(y)
+
+
+def fx_glow_swell(dur=1.2, seed=0, **_):
+    """The star's warmth returning: a soft harmonic swell (D) with a rising airy shimmer."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    u = t / dur
+    y = np.zeros(n)
+    for k, (f, a) in enumerate(((587.3, 1.0), (880.0, 0.6), (1174.7, 0.45), (1760.0, 0.25), (2349.3, 0.12))):
+        y += a * np.sin(TWO_PI * f * t + k) * (1 + 0.15 * np.sin(TWO_PI * (0.8 + 0.3 * k) * t))
+    air = dsp.sweep_filter(white(n, seed), "bp", 1500, 7000, q=2.0) * 0.4
+    return norm((y + air) * np.clip(u / 0.35, 0, 1) ** 2 * np.clip((1 - u) / 0.5, 0, 1))
+
+
+def fx_petal_burst(seed=0, **_):
+    n = int(0.9 * SR)
+    puff = bp(pink(n, seed), 2200, q=0.6) * env_exp(n, 0.22, att=0.02)
+    flutter = grains(n, 160, seed + 1, dur_ms=(2, 6), band=(2000, 7000), decay=0.3) * 0.5
+    return norm(puff + flutter)
+
+
+def fx_gust(dur=2.5, seed=0, **_):
+    """A big gust: a swelling wind surge sweeping across, with grass rolling in waves under it."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    u = t / dur
+    a, b = pink(n, seed), pink(n, seed + 1)
+    fc = lambda tt: 300 + 900 * math.sin(math.pi * min(1.0, tt / dur)) ** 1.5
+    y = np.stack([dsp.sweep_filter_fn(a, "bp", fc, q=0.6), dsp.sweep_filter_fn(b, "bp", fc, q=0.6)], axis=1)
+    swell = np.clip(u / 0.3, 0, 1) ** 2 * np.clip((1 - u) / 0.55, 0, 1) ** 1.3
+    grass = hp(np.stack([white(n, seed + 2), white(n, seed + 3)], axis=1), 2500) * 0.35
+    grass *= (0.5 + 0.5 * np.sin(TWO_PI * 1.6 * t[:, None] + np.array([[0.0, 1.2]])) ** 2)
+    howl = dsp.sweep_filter_fn(white(n, seed + 4), "bp", lambda tt: 600 + 400 * tt / dur, q=14)[:, None] * 1.5
+    y = (y + grass + howl) * swell[:, None]
+    p = -0.6 + 1.2 * u
+    y[:, 0] *= np.sqrt(0.5 * (1 - p))
+    y[:, 1] *= np.sqrt(0.5 * (1 + p))
+    return y / (np.max(np.abs(y)) + 1e-9)
+
+
+def fx_sail_groan(dur=2.5, seed=0, **_):
+    """The great sails turning: slow wooden groans through the shaft, rope creaks, canvas flutter."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    groan = stick_slip(n, lambda tt: 38 + 25 * math.sin(tt * 2.1) + 12 * math.sin(tt * 5.3), seed, jitter=0.35,
+                       amp_fn=lambda tt: 0.5 + 0.5 * math.sin(math.pi * min(1.0, tt / dur)))
+    y = resonators(groan, [120, 265, 540, 980], [8, 9, 10, 8], [1, .8, .5, .25])
+    for k, tc in enumerate(np.linspace(0.2, dur - 0.5, 4)):
+        i = int(tc * SR)
+        c = fx_sail_creak(seed=seed + 10 + k, dist=0.8)
+        j = min(n - i, len(c))
+        y[i:i + j] += 0.5 * c[:j]
+    canvas = bp(pink(n, seed + 2), 600, q=0.6) * (0.5 + 0.5 * np.abs(np.sin(np.pi * 6.5 * t))) * 0.35
+    return norm(dsp.fade(y + canvas, 0.15, 0.5))
+
+
+def fx_sparkle_cascade(dur=2.0, seed=0, **_):
+    """Ignition sparks: a shower of tiny chimes, falling in pitch, thinning out."""
+    n = int(dur * SR)
+    r = np.random.default_rng(seed)
+    y = np.zeros(n, np.float32)
+    t = 0.0
+    while t < dur * 0.9:
+        i = int(t * SR)
+        u = t / dur
+        f = r.uniform(3500, 9500) * (1 - 0.45 * u)
+        y[i:] += modal(n - i, [f, f * 2.4], [1.0, 0.25], [r.uniform(0.08, 0.3), 0.05], seed + i)[:n - i] * \
+            (1 - 0.8 * u) * r.uniform(0.3, 1.0)
+        t += r.exponential(0.02 + 0.12 * u)
+    return norm(y)
 
 
 EFFECTS = {k[3:]: v for k, v in globals().items() if k.startswith("fx_")}
 
 
 # ============================================================================================= ambience beds
-def bird_chirps(n, density, seed, dist=1.0):
-    """Synthesised birdsong: phrases of FM chirps from a few 'species'."""
-    r = np.random.default_rng(seed)
-    y = np.zeros((n, 2), np.float32)
-    species = [dict(f=(2800, 4200), d=(0.04, 0.09), k=(3, 7), gap=0.07), dict(f=(3500, 6000), d=(0.02, 0.05), k=(5, 12), gap=0.04),
-               dict(f=(1800, 2600), d=(0.12, 0.25), k=(2, 3), gap=0.15)]
-    t = r.uniform(0, 1.0)
-    dur = n / SR
-    while t < dur:
-        sp = species[int(r.integers(0, len(species)))]
-        p = r.uniform(-0.8, 0.8)
-        g = r.uniform(0.3, 1.0) / dist
-        tt = t
-        for _ in range(int(r.integers(*sp["k"]))):
-            d = r.uniform(*sp["d"])
-            m = int(d * SR)
-            i = int(tt * SR)
-            if i + m >= n:
-                break
-            u = np.arange(m) / m
-            f0 = r.uniform(*sp["f"])
-            sweep = f0 * (1 + r.uniform(-0.35, 0.45) * u + 0.08 * np.sin(TWO_PI * r.uniform(20, 60) * u * d))
-            c = np.sin(TWO_PI * np.cumsum(sweep) / SR) * np.sin(np.pi * u) ** 1.5 * g
-            y[i:i + m] += pan(c.astype(np.float32), p)
-            tt += d + sp["gap"] * r.uniform(0.6, 1.4)
-        t = tt + r.exponential(1.0 / density)
-    return lp(y, 7500 / max(1.0, dist ** 0.5))
-
-
 def crickets(n, seed, count=5, level=1.0):
     r = np.random.default_rng(seed)
     t = np.arange(n) / SR
@@ -807,52 +500,19 @@ def wind(n, seed, strength=1.0, howl=0.0, airy=0.0):
     return hp(lp(y, 6000), 90, order=2)
 
 
-def rain(n, seed, heavy=1.0):
-    hiss = hp(np.stack([pink(n, seed), pink(n, seed + 1)], axis=1), 1200) * 0.5
-    drops = np.stack([grains(n, 900 * heavy, seed + 2, dur_ms=(0.5, 2), band=(1000, 9000)),
-                      grains(n, 900 * heavy, seed + 3, dur_ms=(0.5, 2), band=(1000, 9000))], axis=1) * 1.2
-    low = lp(np.stack([brown(n, seed + 4), brown(n, seed + 5)], axis=1), 200) * 0.2
-    return hiss + drops + low
-
-
-def room_tone(n, seed, warm=1.0):
-    lo = hp(lp(np.stack([brown(n, seed), brown(n, seed + 1)], axis=1), 220), 70, order=2) * 0.8 * warm
-    air = bp(np.stack([pink(n, seed + 2), pink(n, seed + 3)], axis=1), 2500, q=0.4) * 0.07
-    return lo + air
-
-
 def bed(kind, dur, seed):
+    """Night ambience beds (exterior, one night)."""
     n = int(dur * SR)
-    if kind == "room_day":
-        y = room_tone(n, seed) + 0.25 * stereoize(fx_stove(dur, seed + 1))
-    elif kind == "room_dawn":
-        y = room_tone(n, seed) + lp(bird_chirps(n, 0.8, seed + 2, dist=2.5), 3000) * 0.5
-    elif kind == "room_night":
-        y = room_tone(n, seed, warm=0.7)
-    elif kind == "room_winter":
-        y = room_tone(n, seed) + lp(wind(n, seed + 3, 0.8), 500) * 0.6
-    elif kind == "room_cold":
-        y = room_tone(n, seed, warm=0.5) + lp(wind(n, seed + 3, 0.5), 400) * 0.3
-    elif kind == "ext_dusk":
-        y = wind(n, seed, 0.8, airy=0.5) + bird_chirps(n, 0.25, seed + 1, dist=3.0) * 0.35
-    elif kind == "ext_day":
-        y = wind(n, seed, 0.7, airy=0.4) * 0.8 + bird_chirps(n, 1.1, seed + 1, dist=1.8) * 0.6
-    elif kind == "ext_autumn":
-        y = wind(n, seed, 0.9, airy=0.6) + bird_chirps(n, 0.3, seed + 1, dist=3.0) * 0.35
-    elif kind == "ext_night":
-        y = wind(n, seed, 0.5, airy=0.3) * 0.6 + crickets(n, seed + 1, 5, 0.3)
-    elif kind == "meadow_night":
-        y = wind(n, seed, 0.4) * 0.4 + crickets(n, seed + 1, 12, 0.45)
-    elif kind == "ext_winter":
-        y = wind(n, seed, 1.0, airy=0.9)
-    elif kind == "ext_wind":
-        y = wind(n, seed, 1.4, howl=0.15, airy=0.8)
-    elif kind == "storm":
-        y = rain(n, seed, 1.0) + wind(n, seed + 7, 2.0, howl=0.35, airy=1.0) * 1.3
-    elif kind == "storm_dark":
-        y = rain(n, seed, 0.5) * 0.7 + wind(n, seed + 7, 1.6, howl=0.25, airy=0.6)
-    elif kind == "high_wind":
-        y = hp(wind(n, seed, 0.6, airy=1.2), 400) * 0.8
+    if kind == "night_meadow":          # crickets close + a soft wind bed + a distant breeze
+        y = crickets(n, seed + 1, 8, 0.3) + wind(n, seed, 0.45, airy=0.3) * 0.55 + lp(wind(n, seed + 9, 0.8), 500) * 0.4
+    elif kind == "night_gallery":       # higher up: more breeze, the crickets further away
+        y = wind(n, seed, 0.7, airy=0.45) * 0.8 + lp(crickets(n, seed + 1, 6, 0.3), 5000) * 0.6
+    elif kind == "night_hush":          # the crickets stop: only the wind
+        y = wind(n, seed, 0.45, airy=0.25) * 0.7
+    elif kind == "high_air":            # far above the cloud sea, the wind dropped: thin moving air
+        y = hp(wind(n, seed, 0.5, airy=1.0), 500, order=2) * 0.8
+    elif kind == "gust_wind":           # the gust builds
+        y = wind(n, seed, 1.3, howl=0.1, airy=0.8)
     else:
         raise ValueError(kind)
     return y.astype(np.float32)
@@ -866,19 +526,16 @@ def stereoize(y):
 
 
 # ============================================================================================= rendering
-SPACES = {
-    "room": dict(ir=lambda: dsp.make_ir(0.5, predelay=0.004, seed=21, er=dict(n=18, spread=0.025, gain=0.7, lp=7000),
-                                       hf_damp=0.6, bright=7000), wet=0.32),
+SPACES = {   # v2 is all exterior: the open mountain night, and the sky high above the cloud sea
     "open": dict(ir=lambda: dsp.make_ir(1.8, predelay=0.06, seed=22, er=dict(n=4, spread=0.35, gain=0.5, lp=3000),
                                        hf_damp=0.35, bright=4000), wet=0.10),
-    "storm": dict(ir=lambda: dsp.make_ir(1.2, predelay=0.02, seed=23, hf_damp=0.4, bright=5000), wet=0.15),
     "sky": dict(ir=lambda: dsp.make_ir(2.6, predelay=0.05, seed=24, hf_damp=0.3, bright=5000), wet=0.14),
 }
 
 
 def shot_at(t):
-    for name, a, b, _d in cues.SHOTS:
-        if cues.bar(a) <= t < cues.bar(b):
+    for name, *_ in cues.SHOTS:
+        if cues.start(name) <= t < cues.end(name):
             return name
     return cues.SHOTS[-1][0]
 

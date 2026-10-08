@@ -89,12 +89,13 @@ def glock(m, vel=80, p=0.0):
     return pan(y.astype(np.float32), p)
 
 
-def musicbox(m, vel=80, p=0.0, detune_seed=0):
-    """Comb-tine music box: clamped-free bar modes (1, 6.27, 17.55), pin-release click, slightly out of tune."""
+def musicbox(m, vel=80, p=0.0, detune_seed=0, cents_sd=7.0):
+    """Comb-tine music box: clamped-free bar modes (1, 6.27, 17.55), pin-release click; each tine detuned by a
+    random amount with standard deviation cents_sd (7 = a cheap toy, ~1.5 = a fine box)."""
     f0 = hz(m)
     v = vel / 127
     r = np.random.default_rng(detune_seed * 131 + m)
-    cents = r.normal(0, 7)
+    cents = r.normal(0, cents_sd)
     t60 = float(np.clip(2.6 * (1046.0 / f0) ** 0.4, 0.8, 3.5))
     n = int(t60 * 0.9 * SR)
     parts = [(1.0, 1.0), (6.267, 0.22), (2.0, 0.05), (17.55, 0.04)]
@@ -311,3 +312,21 @@ def sub(m, dur, vel=80, attack=0.6, release=1.0):
     e = np.clip(t / attack, 0, 1) * np.where(t < dur, 1.0, np.exp(-(t - dur) / (release / 5)))
     y = _tail(y * e) * (vel / 127) * 0.25
     return pan(y.astype(np.float32), 0.0)
+
+
+def heartbeat(vel=80, p=0.0, seed=0, f0=62.0, dub=True):
+    """A soft, chest-muffled heartbeat 'lub-dub' (no stick click): two low thumps 0.17 s apart."""
+    v = vel / 127
+    n = int(0.75 * SR)
+    t = np.arange(n) / SR
+    y = np.zeros(n)
+    for t0, f, a in ((0.0, f0, 1.0), (0.17, f0 * 0.9, 0.6)) if dub else ((0.0, f0, 1.0),):
+        u = np.clip(t - t0, 0, None)
+        on = (t >= t0)
+        glide = 1 + 0.35 * np.exp(-u / 0.025)
+        ph = TWO_PI * np.cumsum(f * glide * on) / SR
+        y += on * a * (np.sin(ph) + 0.35 * np.sin(2 * ph)) * np.exp(-u / 0.07)     # 2nd partial: audible on small speakers
+    y += 0.15 * lp(white(n, seed), 180) * np.exp(-t / 0.05)
+    y = lp(y, 400)
+    y = _tail(y * _attack(n, 0.004)) * v * 0.9
+    return pan(y.astype(np.float32), p)

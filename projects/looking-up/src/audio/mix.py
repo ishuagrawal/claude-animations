@@ -1,4 +1,4 @@
-"""Final mix: score + foley + ambience -> out/audio/soundtrack.wav (48 kHz, 24-bit stereo, exactly 240.0 s).
+"""Final mix: score + foley + ambience -> out/audio/soundtrack.wav (48 kHz, 24-bit stereo, exactly the film length).
 
 Music automation from cues.py (ducking under key effects, hard mutes at smash cuts), bus EQ/compression, master
 limiter (true-peak aware) and loudness normalisation to the target integrated loudness. Quiet passages are never
@@ -57,7 +57,7 @@ def mix_buses(n):
     music = dsp.eq(music, [("hp", 30, 0.7, 0), ("peak", 3200, 1.0, 0.8), ("highshelf", 7000, 0.7, 1.5)])
     # music: slow leveller on the loudest passages only (quiet scenes sit far below the threshold), then peak taming
     music, _ = dsp.compress(music, thresh_db=-24.0, ratio=2.0, attack=0.08, release=0.6, knee_db=8.0)
-    music, _ = dsp.compress(music, thresh_db=-12.0, ratio=4.0, attack=0.003, release=0.1, knee_db=4.0)
+    music, _ = dsp.compress(music, thresh_db=-14.0, ratio=4.0, attack=0.002, release=0.1, knee_db=4.0)
     foley = dsp.eq(foley, [("hp", 40, 0.7, 0), ("hp", 40, 0.7, 0), ("peak", 4500, 1.2, 1.0)])
     foley, _ = dsp.compress(foley, thresh_db=-14.0, ratio=3.0, attack=0.001, release=0.1, knee_db=4.0)
     amb = dsp.eq(amb, [("hp", 60, 0.7, 0), ("lowshelf", 180, 0.7, -3.0)])
@@ -66,19 +66,21 @@ def mix_buses(n):
             "ambience": amb * dsp.db(BUS_DB["ambience"])}
 
 
-def master(x, fade_out=3.0):
+def master(x, fade_out=None):
     n = len(x)
+    fade_out = getattr(cues, "FADE_OUT", 3.0) if fade_out is None else fade_out
     x = dsp.hp(x, 22.0, order=2)
-    # end-of-film fade (last 3 s), equal-power
+    # end-of-film fade (cues.FADE_OUT), equal-power
     k = int(fade_out * SR)
     x[n - k:] *= np.cos(np.linspace(0, np.pi / 2, k))[:, None] ** 1.2
     # static gain so that the limited result hits the target loudness (2 refinement passes)
     gain = 0.0
+    chain = lambda g: dsp.limiter(dsp.soft_clip(x * dsp.db(g), knee_db=CEILING_DBTP - 3.0, top_db=CEILING_DBTP + 1.5),
+                                  ceiling_db=CEILING_DBTP)
     for _ in range(3):
-        y = dsp.limiter(x * dsp.db(gain), ceiling_db=CEILING_DBTP)
-        L = dsp.lufs_integrated(y)
+        L = dsp.lufs_integrated(chain(gain))
         gain += TARGET_LUFS - L
-    y = dsp.limiter(x * dsp.db(gain), ceiling_db=CEILING_DBTP)
+    y = chain(gain)
     return y, gain
 
 

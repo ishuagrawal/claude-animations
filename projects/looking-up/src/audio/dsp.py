@@ -298,6 +298,18 @@ def true_peak_db(x, os_factor=4):
     return float(to_db(np.max(np.abs(y))))
 
 
+def soft_clip(x, knee_db=-4.3, top_db=0.2, os_factor=4):
+    """Oversampled tanh soft clipper: transparent below knee_db, peaks fold smoothly toward top_db. Used before the
+    limiter so single-transient hits are shaved by a few dB instead of making the limiter duck the sustain after."""
+    x = stereo(x).astype(np.float64)
+    up = signal.resample_poly(x, os_factor, 1, axis=0)
+    th, top = db(knee_db), db(top_db)
+    a = np.abs(up)
+    over = a > th
+    up[over] = np.sign(up[over]) * (th + (top - th) * np.tanh((a[over] - th) / (top - th)))
+    return signal.resample_poly(up, 1, os_factor, axis=0)[:len(x)].astype(np.float32)
+
+
 def limiter(x, ceiling_db=-1.3, lookahead=0.004, release=0.12, os_factor=4):
     """Look-ahead brickwall limiter on 4x-oversampled (true) peaks. The gain is a forward minimum over the
     look-ahead window, recovers with a one-pole release, then is box-smoothed backwards over the same window,
