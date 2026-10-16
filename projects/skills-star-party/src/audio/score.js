@@ -1,20 +1,19 @@
-// The soundtrack: an original 120 BPM product-video cue in D major — airy pad and music-box
-// twinkles while the icon comes alive, a soft four-on-the-floor groove (I–V–vi–IV) once the page is
-// up, a fuller chorus for the thank-you and a held final chord — with UI foley on every cursor
-// event of the cue sheet: hover ticks, clicks, keystrokes, toggles, success blips, chimes, whooshes
-// on scrolls and camera moves, and confetti.
+// The soundtrack: an original, bright 120 BPM cue in D major, four bars long. Bar 1 is all foley and
+// sparkle for the logo (pop, wind-up, the inversion shimmer, the bloop as the Octocat appears, a blip
+// for every part that pops on, a plop as the ring lands as a puddle); bar 2 starts the groove as Claude
+// leaps in and the count ticks up; bar 3 is the hit (crash, chord, poppers, confetti) with the hook;
+// bar 4 resolves on a held D major chord under the fade.
 import { makeEngine, mtof } from './engine.js';
-import { C, bar, beat, STARS, GRID, cellTime, INSTALL, RUN } from '../timeline.js';
+import { C, bar, beat } from '../timeline.js';
 import { BEAT } from '../core.js';
 
 export const SR = 48000;
 const E8 = BEAT / 2, S16 = BEAT / 4;
-
-// chords (MIDI) and bass roots per bar (bars are 1-based, 2 s each)
 const CH = { D: [62, 66, 69], Bm: [59, 62, 66], G: [55, 59, 62], A: [57, 61, 64] };
-const PROG = { 1: 'D', 2: 'A', 3: 'Bm', 4: 'G', 5: 'D', 6: 'A', 7: 'Bm', 8: 'G', 9: 'D', 10: 'A', 11: 'Bm', 12: 'G', 13: 'D' };
 const ROOT = { D: 38, Bm: 35, G: 43, A: 45 };
-const PENTA = [74, 76, 78, 81, 83, 86, 88, 90, 93, 95];
+// harmony per half bar (seconds): bar 2 G → A, bar 3 D → Bm, bar 4 G → A → D
+const HARM = [[bar(2), 'G'], [beat(2, 3), 'A'], [bar(3), 'D'], [beat(3, 3), 'Bm'], [bar(4), 'G'], [beat(4, 2), 'A'], [beat(4, 3), 'D']];
+const chordAt = t => { let c = 'D'; for (const [tt, n] of HARM) if (t >= tt - 1e-6) c = n; return c; };
 
 export async function renderSoundtrack(duration) {
   const ctx = new OfflineAudioContext(2, Math.ceil(duration * SR), SR);
@@ -23,7 +22,7 @@ export async function renderSoundtrack(duration) {
   music(A, S);
   foley(A);
   const g = A.buses.master.gain;
-  g.value = 1.07; g.setValueAtTime(1.07, C.fadeOut); g.linearRampToValueAtTime(0.0001, duration - 0.02);
+  g.value = 1.0; g.setValueAtTime(1.0, C.fadeOut); g.linearRampToValueAtTime(0.0001, duration - 0.02);
   return ctx.startRendering();
 }
 
@@ -60,144 +59,86 @@ function synths(A) {
     // sidechain-style pump: duck the synth bus on each kick
     pump(t, depth = 0.6) { const g = bus.gain; g.setValueAtTime(1 - depth, t); g.setTargetAtTime(1, t + 0.02, 0.09); },
   };
-}
-
-// ------------------------------------------------------------- music
+}// ------------------------------------------------------------- music
 function music(A, S) {
   const { drums: D, inst: I, fx } = A;
   const kick = (t, v = 1, pump = 0.45) => { D.kick(t, v); if (pump) S.pump(t, pump); };
-  const arp = (n, v = 1, pattern = [0, 1, 2, 1, 0, 2, 1, 2], oct = 12) => {
-    const ch = CH[PROG[n]];
-    for (let i = 0; i < 8; i++) S.pluck(bar(n) + i * E8, ch[pattern[i]] + oct, v * (i % 2 ? 0.7 : 1), (i % 2 ? 0.3 : -0.3));
-  };
-  const groove = (n, { clap = true, hats = 1, bass = 1, pump = 0.45, kickV = 0.8, shaker = 1, skip = [] } = {}) => {
-    for (let b = 0; b < 4; b++) {
-      if (skip.includes(b)) continue; // a stop
-      const t = bar(n) + b * BEAT;
-      if (kickV > 0) kick(t, kickV, pump);
-      if (clap && (b === 1 || b === 3)) D.clap(t, 0.6);
-      if (hats) D.hat(t + E8, 0.6 * hats, true);
-      if (shaker) for (let k = 0; k < 4; k++) D.hat(t + k * S16, (k === 2 ? 0.0 : 0.22) * shaker);
-      if (bass) { const r = ROOT[PROG[n]]; I.bass(t + E8, r, E8 * 0.85, 0.8 * bass); if (b % 2) I.bass(t + E8 + S16, r + 12, S16 * 0.7, 0.35 * bass); }
-    }
-  };
-  const pad = (n, v = 1, oct = 12) => S.pad(bar(n), CH[PROG[n]].map(m => m + oct), 2.1, v);
-  const lead = (n, notes, v) => { for (const [b, m, d] of notes) S.lead(bar(n) + b * BEAT, m, d * BEAT, v); };
-
-  // ---- intro (bars 1–2): pad, twinkles, a riser into the window opening, half-time pulse
-  pad(1, 0.9); pad(2, 1);
-  for (let i = 0; i < 6; i++) I.musicbox(C.icon + 0.1 + i * E8 * 0.5, [86, 90, 93, 98, 93, 90][i], 0.35);
-  fx.riser(C.dissolve - 0.2, C.alive - C.dissolve + 0.2, 0.55);
-  fx.sub(C.alive, 0.5, 80, 0.9); D.crash(C.alive, 0.45);
-  S.chord(C.alive, CH.A.map(m => m + 12), 0.9, 0.9);
-  arp(2, 0.45);
-  for (let b = 1; b < 4; b++) kick(bar(2) + b * BEAT, 0.45, 0.25);
-
-  // ---- hero (bars 3–4): the groove arrives
-  D.crash(bar(3), 0.5);
-  groove(3, { clap: false, bass: 0.8 }); arp(3, 0.6); pad(3, 0.7);
-  groove(4); arp(4, 0.65); pad(4, 0.7);
-  S.chord(C.star, CH.Bm.map(m => m + 24), 0.5, 0.8);
-  for (let k = 0; k < 8; k++) D.snare(C.scroll1 - 0.2 + k * 0.07, 0.08 + k * 0.03); // soft roll into the scroll
-
-  // ---- feature (bars 5–8): full groove, offbeat chords, a lead line while the run completes
-  D.crash(bar(5), 0.6);
-  for (const n of [5, 6, 7, 8]) {
-    const full = n >= 7; // builds: lighter while the cards arrive and the command types, full once it runs
-    groove(n, { kickV: full ? 0.85 : 0.7, clap: full, hats: full ? 1 : 0.6 }); arp(n, full ? 0.55 : 0.45);
-    if (full) for (let b = 0; b < 4; b++) S.chord(bar(n) + b * BEAT + E8, CH[PROG[n]].map(m => m + 12), E8 * 0.7, 0.45);
-    else pad(n, 0.6);
+  // bar 1: a soft D pad and music-box sparkle under the logo
+  S.pad(0.05, CH.D.map(m => m + 12), 2.0, 0.7);
+  [86, 90, 93, 98].forEach((m, k) => I.musicbox(C.mark + 0.05 + k * 0.07, m, 0.5));
+  // bars 2–4: the groove (bar 2 lighter; full from the hit), plucked 8ths on the harmony, bass on the off-beats
+  for (let b = 0; b < 12; b++) {
+    const t = bar(2) + b * BEAT, full = t >= C.hit - 1e-6;
+    if (t >= beat(4, 3) - 1e-6) break;                            // the final chord rings alone
+    kick(t, full ? 0.95 : 0.75, full ? 0.5 : 0.35);
+    if (full && b % 2 === 1) D.clap(t, 0.75);
+    D.hat(t + E8, full ? 0.75 : 0.5, true);
+    for (let k = 1; k < 4; k += 2) D.hat(t + k * S16, 0.22);
+    const ch = CH[chordAt(t)], r = ROOT[chordAt(t)];
+    I.bass(t + E8, r, E8 * 0.85, 0.85);
+    if (full) I.bass(t + E8 + S16, r + 12, S16 * 0.7, 0.35);
+    S.pluck(t, ch[b % 3] + 12, 0.75, -0.3); S.pluck(t + E8, ch[(b + 1) % 3] + 24, 0.55, 0.3);
+    if (full) S.chord(t + E8, ch.map(m => m + 12), E8 * 0.7, 0.55);
   }
-  lead(7, [[0, 74, 1], [1, 78, 0.5], [1.5, 76, 0.5], [2, 74, 1], [3, 71, 1]], 0.55);
-  lead(8, [[0, 71, 1], [1, 74, 0.5], [1.5, 76, 0.5], [2, 78, 1.5]], 0.55);
-
-  // ---- stats (bars 9–10): lighter — kick + shaker under the cascade, pad swell to the newest star
-  D.crash(bar(9), 0.5);
-  // breakdown: no kick or bass while the cells light, then the kick returns and stops dead before the chorus
-  groove(9, { clap: false, hats: 0, bass: 0, kickV: 0, shaker: 0.8 }); pad(9, 1.2); arp(9, 0.35, [0, 1, 2, 1, 0, 2, 1, 2], 24);
-  groove(10, { clap: false, bass: 0.6, kickV: 0.6, hats: 0.5, skip: [3] }); pad(10, 1.1);
-  for (let k = 0; k < 12; k++) D.snare(C.scroll3 - 0.15 + k * (bar(11) - C.scroll3 + 0.1) / 12, 0.06 + k * 0.025);
-  fx.riser(bar(10) + BEAT * 2, BEAT * 2, 0.45);
-
-  // ---- thank-you chorus (bars 11–12)
-  D.crash(bar(11), 0.8); fx.sub(bar(11), 0.45, 75, 0.8);
-  for (const n of [11, 12]) {
-    groove(n, { kickV: 0.9, pump: 0.55 });
-    for (let b = 0; b < 4; b++) S.chord(bar(n) + b * BEAT + E8, CH[PROG[n]].map(m => m + 12), E8 * 0.8, 0.6);
-    arp(n, 0.5, [0, 2, 1, 2, 0, 2, 1, 2], 24); pad(n, 0.8);
-  }
-  lead(11, [[0, 78, 1], [1, 81, 0.5], [1.5, 78, 0.5], [2, 76, 1], [3, 74, 1]], 0.85);
-  lead(12, [[0, 79, 1], [1, 78, 0.5], [1.5, 76, 0.5], [2, 74, 1.5], [3.5, 76, 0.5]], 0.85);
-
-  // ---- outro (bar 13 →): the final chord rings out under the pull-back
-  const end = bar(13);
-  D.crash(end, 0.55); kick(end, 0.8, 0.3); I.bass(end, ROOT.D, 1.6, 0.8);
-  S.chord(end, CH.D.map(m => m + 12), 1.6, 0.9);
-  S.pad(end, CH.D.map(m => m + 12), C.end - end, 1.3); S.pad(end, CH.D.map(m => m + 24), C.end - end, 0.8);
-  S.lead(end, 78, 1.8, 0.7);
-  [74, 78, 81, 86, 90].forEach((m, k) => I.bell(end + 0.05 + k * 0.06, m, 2, 0.55, (k - 2) * 0.3, 0.5));
+  S.pad(bar(2), CH.G.map(m => m + 12), 1.0, 0.8); S.pad(beat(2, 3), CH.A.map(m => m + 12), 1.0, 0.9);
+  // the count: a riser and a snare roll into the hit
+  fx.riser(C.count, C.hit - C.count, 0.55);
+  for (let k = 0; k < 12; k++) D.snare(beat(2, 4) + k * (BEAT / 12), 0.12 + k * 0.035);
+  // the hit
+  D.crash(C.hit, 1.0); fx.sub(C.hit, 0.7, 80, 0.9);
+  S.chord(C.hit, CH.D.map(m => m + 12), 0.7, 1.1);
+  // hook (bars 3–4)
+  for (const [t, m, d] of [[0, 81, 0.5], [0.5, 83, 0.5], [1, 86, 1], [2, 83, 0.5], [2.5, 81, 0.5], [3, 78, 1], [4, 81, 0.5], [4.5, 83, 0.5], [5, 86, 1]]) S.lead(C.hit + t * BEAT, m, d * BEAT, 0.8);
+  // the final chord (bar 4, beat 3) rings to the end
+  const end = beat(4, 3);
+  D.crash(end, 0.55); kick(end, 0.85, 0.2); I.bass(end, ROOT.D, 0.9, 0.85);
+  S.chord(end, CH.D.map(m => m + 12), 0.9, 0.9);
+  S.pad(end, CH.D.map(m => m + 12), C.end - end, 1.2); S.pad(end, CH.D.map(m => m + 24), C.end - end, 0.7);
+  S.lead(end, 90, 0.9, 0.7);
+  [74, 78, 81, 86, 90].forEach((m, k) => I.bell(end + 0.04 + k * 0.05, m, 1.4, 0.5, (k - 2) * 0.3, 0.5));
 }
 
 // ------------------------------------------------------------- foley
 function foley(A) {
   const { fx, inst: I, buses } = A;
-  const ui = (t, v = 1, pan = 0) => fx.pop(t, 0.35 * v, pan);           // a soft UI pop for appearing elements
-  const tick = (t, v = 1, pan = 0) => fx.click(t, 0.5 * v, 4200, pan);    // hover / toggle tick
-  const press = (t, v = 1) => { fx.click(t, 0.9 * v, 2400); fx.click(t + 0.045, 0.5 * v, 3200); A.tone(t, { f0: 180, f1: 110, dur: 0.05, g: 0.12 * v }); };
-  const keys = (t0, s, cps, v) => { for (let k = 0; k < s.length; k++) fx.key(t0 + k / cps + (A.R() - 0.5) * 0.012, v * (0.8 + A.R() * 0.4), (A.R() - 0.5) * 0.3); };
-
-  // intro: icon pops in, hover, click, the reveal shimmer, the window opening
-  fx.pop(C.icon + 0.02, 0.7); fx.sparkle(C.icon + 0.35, 0.5);
-  tick(C.click - 0.4, 0.6);
-  press(C.click, 1.1);
-  for (let k = 0; k < 8; k++) I.bell(C.click + 0.06 + k * 0.055, PENTA[k + 1], 0.5, 0.2, (k % 2 ? 0.4 : -0.4), 0.45, buses.sfx);
-  fx.reverse(C.dissolve, C.alive - C.dissolve, 0.45);
-  fx.drip(C.alive + 0.12, 0.6); fx.sparkle(C.alive + 0.1, 0.6);   // eyes open
-  fx.whoosh(C.open - 0.05, C.openEnd - C.open + 0.1, 0.55, 250, 2600);
-  // hero elements stagger in
-  for (const t of [C.nav, C.pill, C.h1, C.h1 + 0.1, C.sub, C.btns]) ui(t, 0.6);
-  for (let i = 0; i < 4; i++) ui(C.chips + i * 0.12, 0.5, (i % 2 ? 0.4 : -0.4));
-  fx.squeak(C.h1 + 0.1, 0.12, 0.4);                                  // the Octocat waves hello
-  // the star: hover, click, chime, counter tick, sparkle
-  tick(C.star - 0.28, 0.7);
-  press(C.star, 1.2);
-  fx.ching(C.star + 0.01, 0.8); fx.sparkle(C.star + 0.05, 1.0);
-  fx.domino(C.star + 0.18, 0.7); fx.domino(C.star + 0.32, 0.5);
-  [81, 86, 90].forEach((m, k) => I.bell(C.star + 0.02 + k * 0.05, m, 1.2, 0.45, (k - 1) * 0.3, 0.45, buses.sfx));
-  fx.whoosh(C.push1, 1.6, 0.25, 200, 900);
-  // scrolls
-  for (const t of [C.scroll1, C.scroll2, C.scroll3]) { fx.whoosh(t - 0.05, 0.75, 0.7, 300, 3200); fx.swoosh(t + 0.55, 0.35); }
-  // feature: cards pop in, typing, enter, results, toggles, the render, done
-  for (let i = 0; i < 4; i++) ui(C.cards + i * 0.12, 0.6, (i - 1.5) * 0.25);
-  keys(C.type, RUN, 18.5, 0.55);
-  fx.thunk(C.enter, 0.35); fx.key(C.enter, 0.9);
-  [C.out1, C.out2, C.out3].forEach((t, i) => { I.bell(t, [81, 83, 86][i], 0.6, 0.45, 0.2, 0.3, buses.sfx); tick(t + 0.03, 0.8, 0.5); });
-  for (let i = 0; i < 8; i++) fx.pop(C.out2 + 0.03 + i * 0.04, 0.12, (i - 3.5) * 0.12); // palette swatches
-  press(C.out4, 1); tick(C.out4 + 0.03, 0.9, 0.5);
-  fx.riser(C.out4 + 0.2, C.doneRender - C.out4 - 0.2, 0.3);
-  for (let t = C.out4 + 0.25; t < C.doneRender; t += S16) fx.tick(t, 0.25, (Math.round((t - C.out4) / S16) % 2) === 1);
-  fx.ching(C.doneRender, 0.7); [86, 90, 93].forEach((m, k) => I.bell(C.doneRender + k * 0.05, m, 1, 0.4, (k - 1) * 0.3, 0.4, buses.sfx));
-  // stats: the cells light in a rising cascade, the newest rings gold, the tooltip
-  for (let i = 0; i < STARS - 1; i += 2) I.bell(cellTime(i), PENTA[Math.floor(i / (STARS - 1) * PENTA.length)] - 12, 0.25, 0.13 + 0.12 * i / STARS, ((i % GRID.cols) / GRID.cols - 0.5) * 1.2, 0.3, buses.sfx);
-  fx.ching(C.grid1, 0.9); fx.sparkle(C.grid1 + 0.05, 0.9);
-  [74, 78, 81, 86].forEach((m, k) => I.bell(C.grid1 + k * 0.05, m + 12, 1.4, 0.5, (k - 1.5) * 0.3, 0.5, buses.sfx));
-  ui(C.tip, 0.7); tick(C.tip - 0.05, 0.6);
-  for (let i = 0; i < 4; i++) ui(C.stats + 0.25 + i * 0.1, 0.45, (i % 2 ? 0.5 : -0.2));
-  // CTA: mascots pop up, commands type in, Copy → Copied, confetti
-  fx.pop(C.mascots + 0.05, 0.6, -0.4); fx.boing(C.mascots + 0.1, 0.18);
-  fx.pop(C.mascots + 0.2, 0.6, 0.4); fx.squeak(C.mascots + 0.45, 0.12, 0.4);
-  keys(C.typeCmd, INSTALL, 40, 0.35);
-  keys(C.typeCmd + INSTALL.length / 40 + 0.2, RUN, 40, 0.35);
-  tick(C.copy - 0.3, 0.7);
-  press(C.copy, 1.1);
-  fx.ching(C.copy + 0.02, 0.9); fx.sparkle(C.copy + 0.08, 1);
-  fx.pop(C.copy + 0.05, 0.9, -0.8); fx.pop(C.copy + 0.07, 0.9, 0.8);
-  fx.crackle(C.copy + 0.15, 1.2, 40, 0.35, 6500, -0.5); fx.crackle(C.copy + 0.15, 1.2, 40, 0.35, 6500, 0.5);
-  fx.boing(C.copy + 0.1, 0.2);
-  // pull-back, caption
-  fx.whoosh(C.pullOut, 1.6, 0.35, 1200, 250);
-  ui(C.caption + 0.1, 0.6); fx.sparkle(C.caption + 0.2, 0.6);
-  fx.roomTone(0, C.end, 0.35);
+  // the logo pops in; wind-up; the inversion sweeps out; the Octocat bloops into being
+  fx.pop(C.mark + 0.02, 0.9); fx.sparkle(C.mark + 0.25, 0.5);
+  fx.whistleUp(C.squash, C.invert - C.squash, 0.35);
+  fx.reverse(C.invert - 0.12, 0.14, 0.35);
+  fx.whoosh(C.invert, C.invertEnd - C.invert + 0.05, 0.6, 600, 5200);
+  I.bell(C.invert + 0.02, 98, 0.8, 0.35, 0, 0.5, buses.sfx);
+  fx.pop(C.pop, 1.1); fx.boing(C.pop + 0.01, 0.22); fx.sub(C.pop, 0.35, 120, 0.25);
+  // parts pop on: four legs (rising plucks), face, eyes, nose, whiskers, nine suckers (bubbles)
+  [74, 78, 81, 86].forEach((m, i) => I.bell(C.legs + i * 0.035, m, 0.35, 0.28, (i - 1.5) * 0.25, 0.25, buses.sfx));
+  fx.pop(C.face + 0.03, 0.55);
+  fx.blip(C.eyes + 0.02, 1400, 0.7, 0.05, -0.2); fx.blip(C.eyes + 0.07, 1760, 0.7, 0.05, 0.2);
+  fx.click(C.whiskers + 0.05, 0.35, 6000, -0.5); fx.click(C.whiskers + 0.08, 0.35, 6400, 0.5);
+  for (let i = 0; i < 9; i++) fx.drip(C.suckers + i * 0.04, 0.25 + i * 0.02);
+  // the ring lands as a puddle
+  fx.drip(C.puddle + 0.4, 0.9); A.hiss(C.puddle + 0.41, { dur: 0.18, g: 0.12, type: 'bandpass', f0: 2600, q: 0.8 });
+  // alive: a blink sparkle; the drop forms
+  fx.sparkle(C.alive + 0.06, 0.6); fx.drip(C.drip + 0.1, 0.35);
+  // the Octocat steps aside; Claude leaps in and lands
+  fx.whoosh(C.slide, 0.4, 0.35, 300, 1600);
+  fx.boing(C.jump, 0.4); fx.whoosh(C.jump, C.land - C.jump, 0.5, 400, 2400);
+  fx.thud(C.land, 0.7); fx.step(C.land + 0.02, 0.6);
+  // the count: the star chimes in; ticks accelerate with the number
+  fx.ching(C.count + 0.02, 0.7);
+  const n = 22;
+  for (let k = 0; k < n; k++) { const u = k / (n - 1), t = C.count + 0.08 + (C.hit - C.count - 0.12) * (1 - Math.pow(1 - u, 1.6)); fx.tick(t, 0.25 + 0.25 * u, k % 2 === 1); }
+  // the hit: both jump, poppers, confetti, a bright chime
+  fx.whistleUp(C.hit - 0.28, 0.28, 0.4);
+  fx.pop(C.hit, 1, -0.8); fx.pop(C.hit + 0.02, 1, 0.8);
+  fx.crackle(C.hit + 0.08, 1.4, 45, 0.45, 6500, -0.6); fx.crackle(C.hit + 0.08, 1.4, 45, 0.45, 6500, 0.6);
+  fx.ching(C.hit + 0.01, 1);
+  [86, 90, 93, 98].forEach((m, k) => I.bell(C.hit + 0.02 + k * 0.045, m, 1.2, 0.45, (k - 1.5) * 0.3, 0.45, buses.sfx));
+  // landing back in the puddle: a splash
+  fx.thud(C.hit + 0.28, 0.5); fx.drip(C.hit + 0.29, 0.8); A.hiss(C.hit + 0.29, { dur: 0.25, g: 0.18, type: 'bandpass', f0: 3000, q: 0.7, pan: 0.3 });
+  // the repo name slides in; the skill pill pops
+  fx.whoosh(C.repo - 0.05, 0.4, 0.3, 500, 3000);
+  fx.pop(C.skill, 0.7); I.bell(C.skill + 0.02, 93, 0.6, 0.35, 0.3, 0.4, buses.sfx);
+  // waving goodbye
+  fx.squeak(C.wave + 0.1, 0.18, -0.3); fx.squeak(C.wave + 0.45, 0.14, 0.3);
 }
 
 // 16-bit PCM WAV
