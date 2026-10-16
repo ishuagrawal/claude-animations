@@ -38,9 +38,9 @@ export function octoPlace(t) {
   const s = lerp(S0, S1, k), x = LOGO[0];
   let y = lerp(LOGO[1], GROUND - (GEO.puddle.cy - HEAD[1]) * S1, k);
   let hop = 0;
-  for (const c of [C.hit + 0.02, C.jump]) {    // the celebration jump; the jump with Claude
+  for (const [c, hh] of [[C.hit + 0.02, 70], [C.thank, 50]]) {   // the celebration jump; the thank-you jump with Claude
     const h = t - c;
-    if (h > 0 && h < 0.5) hop += Math.sin(Math.PI * h / 0.5) * 70;
+    if (h > 0 && h < 0.5) hop += Math.sin(Math.PI * h / 0.5) * hh;
   }
   if (t > C.hit + 0.7) { const b = ((t - C.hit - 0.7) % 1) / 1; hop += Math.max(0, Math.sin(Math.PI * b * 2)) * 6; }
   return { s, x, y: y - hop, hop };
@@ -58,7 +58,7 @@ function tailAt(t) {
   if (t > C.flick - 0.03) a += 1.75 * eout((t - C.flick + 0.03) / 0.1);           // flick
   if (t > C.flick + 0.12) a -= 1.37 * eio((t - C.flick - 0.12) / 0.45);          // settle
   if (t > C.hit + 0.35) a += Math.sin((t - C.hit - 0.35) * 8) * 0.22 * smooth((t - C.hit - 0.35) / 0.2) * (1 - smooth((t - C.hit - 1.2) / 0.3));
-  if (t > C.wrap + 0.1) a += (0.45 + Math.sin((t - C.wrap) * 9) * 0.28) * smooth((t - C.wrap - 0.1) / 0.25) * (1 - smooth((t - C.wrap - 1.6) / 0.3));
+  if (t > C.wave) a += (0.45 + Math.sin((t - C.wave) * 9) * 0.28) * smooth((t - C.wave) / 0.25) * (1 - smooth((t - C.wave - 1.7) / 0.3));
   return { a, grow };
 }
 export function tipAt(t) {
@@ -217,22 +217,23 @@ function octoParams(t) {
   const L = i => clamp(sp(t, C.legs + i * 0.035, 1.6, 0.55), 0, 1.15);
   const { a: tailAng, grow: tailGrow } = tailAt(t);
   let blink = 0;
-  for (const b of [C.alive + 0.05, 6.4, 9.2, 11.9, 13.1]) blink = Math.max(blink, Math.max(0, 1 - Math.abs(t - b) / 0.07));
-  // eyes follow the star, then the card, then Claude (on its pill, down to the left)
+  for (const b of [C.alive + 0.05, 8.4, 11.25, 13.7, 14.3]) blink = Math.max(blink, Math.max(0, 1 - Math.abs(t - b) / 0.07));
+  // eyes follow the star, then the card, then Claude (on its pill, down to the left), then the viewer
   let look = [0, 0];
   const P = octoPlace(t), head = toScreen(P, [226, 190]);
   if (t > C.starIn && t < C.hit + 0.3) {
     const sp2 = t < C.hit ? (starPos(t) || { x: head[0], y: head[1] - 200 }) : { x: countTarget()[0], y: CARD.cy };
     const dx = sp2.x - head[0], dy = sp2.y - head[1], d = Math.hypot(dx, dy) || 1;
     look = [dx / d, dy / d];
-  } else if (t > C.credit + 0.3) look = [-0.92, 0.4];
+  } else if (t > C.thank - 0.1) look = [0, 0.08];
+  else if (t > C.credit + 0.3) look = [-0.92, 0.4];
   return {
     legs: [L(0), L(1), L(2), L(3)].map(v => (t < C.pop ? 0 : v)),
     tailAng, tailGrow, suckers: clamp((t - C.suckers) / 0.36),
     face: clamp(sp(t, C.face, 2.6, 0.5), 0, 1.2),
     eyes: clamp(sp(t, C.eyes, 2.8, 0.42), 0, 1.25), blink, look,
     nose: clamp(sp(t, C.eyes + 0.06, 2.4, 0.45), 0, 1.3), mouth: eout((t - C.eyes - 0.1) / 0.25),
-    grin: smooth((t - C.hit) / 0.1) * (1 - smooth((t - C.hit - 1.4) / 0.4)) + smooth((t - C.wrap) / 0.2) * 0.8,
+    grin: smooth((t - C.hit) / 0.1) * (1 - smooth((t - C.hit - 1.4) / 0.4)) + smooth((t - C.thank) / 0.2) * 0.85,
     happy: smooth((t - C.hit) / 0.1),
     whiskers: eout((t - C.whiskers) / 0.32),
     puddle: t < C.puddle + 0.42 ? 0 : 1, puddleSquash: 1 + 0.12 * Math.exp(-(t - C.puddle - 0.42) * 6) * Math.sin((t - C.puddle - 0.42) * 20),

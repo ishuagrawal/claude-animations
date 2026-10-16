@@ -7,10 +7,10 @@
 //   slots, then launched to build the new world (sky, sun, hills, flowers, the logo, the soundtrack);
 // - the pill the card docks into: ✻ [Made with] /video-by-reference, a progress tint, a live equalizer.
 import { clamp, lerp, TAU } from './core.js';
-import { C, SKILL } from './timeline.js';
+import { C, SKILL, STARS } from './timeline.js';
 import { sp, smooth, eio, eout, font, SANS, MONO } from './kit.js';
 import { sky, ball, ballPos, surface, PAL, SUN } from './sky.js';
-import { sparkle } from './fx.js';
+import { sparkle, star } from './fx.js';
 import { mix, rgba } from './palette.js';
 import { LOGO } from './short.js';
 
@@ -160,7 +160,7 @@ export function cardContent(ctx, t, R, a) {
 // ---------------------------------------------------------------- the reference tile
 const thumbScreen = () => ({ x: CARD.x + THUMB.x, y: CARD.y + THUMB.y, w: THUMB.w, h: THUMB.h });
 const lerpRect = (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), w: lerp(a.w, b.w, u), h: lerp(a.h, b.h, u) });
-const RETRACT = [C.learned + 0.08, C.make + 0.06];
+const RETRACT = [C.make - 0.3, C.make + 0.06];
 function tileRect(t) {
   const k = clamp(sp(t, C.tile, 1.7, 0.62), 0, 1.25), back = eio((t - RETRACT[0]) / (RETRACT[1] - RETRACT[0]));
   let r = lerpRect(thumbScreen(), TILE, Math.min(1, k));
@@ -236,7 +236,7 @@ export function tile(ctx, t) {
     if (kt > 0) for (let i = 0; i < 5; i++) { ctx.fillStyle = `rgba(255,214,90,${kt})`; ctx.save(); ctx.translate(lerp(x0, x1, (i + 0.5) / 5), by0); ctx.rotate(Math.PI / 4); ctx.fillRect(-3, -3, 6, 6); ctx.restore(); }
     // sample rings where each chip is lifted out
     for (let i = 0; i < 6; i++) {
-      const d = t - (C.chips + i * 0.07);
+      const d = t - (C.chips + i * CHIP_GAP);
       if (d < -0.12 || d > 0.25) continue;
       const [px, py] = refToTile(r, SAMPLE[i](t)), e = eout((d + 0.12) / 0.37);
       ctx.strokeStyle = `rgba(255,255,255,${1 - e})`; ctx.lineWidth = 2.5;
@@ -289,8 +289,9 @@ export function chip(ctx, c, x, y, r, t, a = 1) {
   ctx.restore();
 }
 // timing: lifted out of the tile, resting in the slots, launched at the world
-export const chipLand = i => C.chips + i * 0.07 + 0.34;
-export const chipLaunch = i => C.make + i * 0.04;
+export const CHIP_GAP = 0.1;
+export const chipLand = i => C.chips + i * CHIP_GAP + 0.4;
+export const chipLaunch = i => C.make + i * 0.05;
 export const WIPE = [700, 300];
 export const FLOWER_X = 1500;
 export function chipTarget(i, t, pillEq) {
@@ -299,7 +300,7 @@ export function chipTarget(i, t, pillEq) {
 export const chipArrive = i => [C.wipe, C.sun, C.hills, C.flowers, C.mark, C.dockEnd][i];
 // returns where chip i is at t ({x, y, r, a}) or null; pillEq() = the pill's equalizer position
 export function chipState(i, t, pillEq, toCam = p => p) {
-  const t0 = C.chips + i * 0.07;
+  const t0 = C.chips + i * CHIP_GAP;
   if (t < t0 || t > chipArrive(i) + 0.001) return null;
   const [sx, sy] = slotXY(i);
   if (t < chipLand(i)) { // out of the tile, arcing down into its slot
@@ -344,7 +345,7 @@ export function chipPops(ctx, t, pillEq) {
   });
 }
 // the sky chip at the wipe origin: grows into the opening circle
-export function wipeR(t) { const u = (t - C.wipe) / 0.44; return u <= 0 ? 0 : u >= 1 ? 9999 : 30 + 1600 * eout(u); }
+export function wipeR(t) { const u = (t - C.wipe) / 0.5; return u <= 0 ? 0 : u >= 1 ? 9999 : 30 + 1600 * eout(u); }
 
 // ---------------------------------------------------------------- the pill
 const MADE = 'Made with ';
@@ -388,6 +389,59 @@ export function pillContent(ctx, t, R, a) {
     }
   }
   ctx.restore();
+}
+
+// ---------------------------------------------------------------- thank you
+// the headline between the repo card and the Octocat: each word springs up in turn, the count in gold, a star
+const WORDS = ['Thank', 'you', 'for', String(STARS), 'stars'];
+export function thanks(ctx, t) {
+  if (t < C.thank) return;
+  const m = ctx.getTransform().a, y = 334;
+  font(ctx, 70, 700, SANS, -1.4);
+  const sw = ctx.measureText(' ').width * 1.1, ws = WORDS.map(w => ctx.measureText(w).width), R = 30;
+  let x = 960 - (ws.reduce((a, b) => a + b, 0) + sw * WORDS.length + R * 2) / 2;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  WORDS.forEach((w, i) => {
+    const k = clamp(sp(t, C.thank + 0.04 + i * 0.075, 2.3, 0.48), 0, 1.3);
+    if (k > 0.002) {
+      ctx.save();
+      ctx.globalAlpha *= clamp(k * 1.6);
+      ctx.translate(x + ws[i] / 2, y - 25 + (1 - Math.min(1, k)) * 34); ctx.scale(k, k);
+      ctx.shadowColor = 'rgba(255,255,255,0.9)'; ctx.shadowBlur = 26 * m;
+      if (w === String(STARS)) {
+        const g = ctx.createLinearGradient(0, -30, 0, 25);
+        g.addColorStop(0, '#ffd96b'); g.addColorStop(0.55, '#eeaa1c'); g.addColorStop(1, '#c47f0c');
+        ctx.fillStyle = g;
+      } else ctx.fillStyle = '#1f2328';
+      ctx.fillText(w, 0, 25);
+      ctx.restore();
+    }
+    x += ws[i] + sw;
+  });
+  const sk = clamp(sp(t, C.thank + 0.04 + WORDS.length * 0.075 + 0.04, 2.4, 0.4), 0, 1.35);
+  const rot = (1 - Math.min(1, sk)) * -1.2 + Math.sin((t - C.thank) * 2.2) * 0.08;
+  star(ctx, x + R - 6, y - 26, R * sk, { rot });
+  if (t - C.thank < 1.2) for (let i = 0; i < 6; i++) { // a twinkle around the star as it lands
+    const d = t - C.thank - 0.5, a = i * TAU / 6 + 0.4;
+    if (d > 0 && d < 0.6) sparkle(ctx, x + R - 6 + Math.cos(a) * (40 + 60 * d), y - 26 + Math.sin(a) * (40 + 60 * d), 9 * (1 - d / 0.6), i % 2 ? '#ffffff' : '#ffd56b', a, 1);
+  }
+}
+// hearts rising from each origin [x, y, rise px/s] when they wave to the viewer
+const HEART_COLS = ['#ff5a6e', CLAY, '#ff8fa3'];
+export function hearts(ctx, t, origins) {
+  origins.forEach(([ox, oy, rise], j) => {
+    for (let k = 0; k < 5; k++) {
+      const age = t - (C.wave + 0.12 + k * 0.24 + j * 0.12);
+      if (age < 0 || age > 1.7) continue;
+      const s = clamp(sp(age, 0, 2.6, 0.45), 0, 1.3) * (1 - smooth((age - 1.2) / 0.5));
+      const x = ox + (k - 2) * 22 + Math.sin(age * 3.2 + k * 1.7) * 18, y = oy - age * rise;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(age * 4 + k) * 0.18); ctx.scale(s * 1.55, s * 1.55);
+      ctx.fillStyle = HEART_COLS[(k + j) % 3];
+      ctx.beginPath(); ctx.moveTo(0, 9); ctx.bezierCurveTo(-14, -1, -10, -14, 0, -6); ctx.bezierCurveTo(10, -14, 14, -1, 0, 9); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.ellipse(-5, -6, 2.6, 1.6, -0.6, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  });
 }
 
 // ---------------------------------------------------------------- the frame (card ↔ pill) and the stage
