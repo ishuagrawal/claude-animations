@@ -118,3 +118,28 @@ export function confetti(ctx, x, y, u, { n = 70, seed = 1, dir = -Math.PI / 2, s
   }
   ctx.restore();
 }
+
+// gentle confetti rain over a w×h area (no cannons): pieces drift down with sway, flip and spin.
+// u = seconds since it started.
+export function confettiRain(ctx, u, { n = 60, seed = 5, w = 1920, h = 1080, life = 6, size = 15, speed = 260 } = {}) {
+  if (u < 0 || u > life) return;
+  const R = rng(seed);
+  ctx.save();
+  ctx.globalAlpha *= 1 - clamp((u - life + 1) / 1);
+  for (let i = 0; i < n; i++) {
+    const x0 = R() * w, delay = R() * 1.2, v = speed * (0.7 + R() * 0.6), sway = 20 + R() * 40, ph = R() * TAU, spin = 3 + R() * 6;
+    const [c1, c2] = PAL[Math.floor(R() * PAL.length)], kind = R(), s = size * (0.6 + R() * 0.7);
+    const tt = u - delay;
+    if (tt < 0) continue;
+    const y = -40 + v * tt, x = x0 + Math.sin(tt * 2.2 + ph) * sway;
+    if (y > h + 40) continue;
+    const a = tt * spin + ph, flip = Math.cos(a * 1.4);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a * 0.6); ctx.scale(1, Math.max(0.12, Math.abs(flip)));
+    ctx.fillStyle = flip > 0 ? c1 : c2;
+    if (kind < 0.18) { ctx.beginPath(); ctx.arc(0, 0, s * 0.34, 0, TAU); ctx.fill(); }
+    else if (kind < 0.3) { ctx.restore(); star(ctx, x, y, s * 0.5, { rot: a, shadow: 0 }); continue; }
+    else { ctx.beginPath(); ctx.roundRect(-s / 2, -s * 0.2, s, s * 0.4, s * 0.1); ctx.fill(); ctx.fillStyle = flip > 0 ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.12)'; ctx.fillRect(-s / 2 + 1, -s * 0.2 + 1, s - 2, s * 0.12); }
+    ctx.restore();
+  }
+  ctx.restore();
+}
