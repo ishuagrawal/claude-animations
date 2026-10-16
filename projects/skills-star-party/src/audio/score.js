@@ -1,11 +1,14 @@
 // The soundtrack: an original, bright 120 BPM cue in D major, seven bars. Bar 1 is light (shaker,
-// plucks) while Claude hops in and the reference ball boops along; bar 2 adds a half-time kick under
-// the study (scan swell, frame clicks, a rising plink for each style chip) and lands on the clap;
-// bars 3–4 are the short (the logo, the Octocat assembling, a falling-star glissando, the catch, the
-// flick); bar 5 hits on the star (chime, crash, gentle confetti) with the hook; bar 6 is the wrap
-// clap; bar 7 resolves on a held D major chord under the fade.
+// plucks) while Claude drops onto the Claude Code card and types (soft key clicks, a stomp on enter);
+// bar 2 adds a half-time kick under the study (scan swell, a rising plink for each style chip, a chime
+// for "style learned") and stabs on "make", when the chips fly out and the world builds (a whoosh for
+// the sky, a bell for the sun, a bloom for the hills, plinks for the flowers); bars 3–4 are the short
+// (the logo, the Octocat assembling, a falling-star glissando, the catch, the flick); bar 5 hits on the
+// star (chime, crash, gentle confetti) with the hook; bar 6 is the wrap (waves, confetti from the
+// pill); bar 7 resolves on a held D major chord under the fade.
 import { makeEngine, mtof } from './engine.js';
 import { C, bar, beat } from '../timeline.js';
+import { keyTimes, chipLand, chipLaunch, chipArrive } from '../ui.js';
 import { BEAT } from '../core.js';
 
 export const SR = 48000;
@@ -78,9 +81,9 @@ function music(A, S) {
   }
   S.pad(bar(1), CH.D.map(m => m + 12), 2.0, 0.6); S.pad(bar(2), CH.Bm.map(m => m + 12), 2.0, 0.7);
   S.pad(bar(3), CH.G.map(m => m + 12), 2.0, 0.6); S.pad(bar(4), CH.A.map(m => m + 12), 2.0, 0.7);
-  // the clap: a stab on the downbeat-to-be; the zoom rides a riser
-  S.chord(C.clap, CH.Bm.map(m => m + 12), 0.4, 1.0);
-  fx.riser(C.zoomIn - 0.05, C.zoomInEnd - C.zoomIn, 0.35);
+  // make: a stab; the world builds over a riser into bar 3
+  S.chord(C.make, CH.Bm.map(m => m + 12), 0.4, 1.0);
+  fx.riser(C.make, bar(3) - C.make, 0.35);
   // into the hit: riser + roll under the flick
   fx.riser(beat(4, 3), C.hit - beat(4, 3), 0.45);
   for (let k = 0; k < 8; k++) D.snare(beat(4, 4) + k * (BEAT / 8), 0.12 + k * 0.05);
@@ -101,29 +104,33 @@ function music(A, S) {
 // ------------------------------------------------------------- foley
 function foley(A) {
   const { fx, inst: I, buses } = A;
-  const clack = (t, v = 1) => { // clapperboard: a dry wooden snap
-    A.hiss(t, { dur: 0.03, g: 0.7 * v, type: 'bandpass', f0: 2400, q: 1.4 });
-    A.hiss(t, { dur: 0.012, g: 0.5 * v, type: 'highpass', f0: 5000 });
-    A.tone(t, { type: 'triangle', f0: 320, f1: 140, dur: 0.06, g: 0.35 * v });
-    A.hiss(t + 0.004, { dur: 0.15, g: 0.12 * v, type: 'bandpass', f0: 900, q: 0.8, rev: 0.4 });
-  };
-  // act 1: the card pops in; the reference ball boops on each bounce; Claude hops in, presents the slate
-  fx.pop(C.card + 0.02, 0.7, 0.4);
-  for (let t = 0.5; t < C.clap + 0.5; t += 0.5) A.tone(t, { f0: 300, f1: 170, dur: 0.07, g: 0.08, pan: 0.45 });
-  fx.boing(C.hop, 0.3); fx.whoosh(C.hop, C.land - C.hop, 0.3, 300, 1400, -0.5);
-  fx.thud(C.land, 0.6, -0.4); fx.step(C.land + 0.02, 0.5, -0.4);
-  fx.pop(C.slate, 0.6, -0.3); I.bell(C.slate + 0.02, 86, 0.6, 0.35, -0.3, 0.35, buses.sfx);
-  // act 1: the study
-  A.hiss(C.scan, { dur: 0.65, g: 0.1, type: 'bandpass', f0: 1200, f1: 6000, q: 2, a: 0.3, pan: 0.4 });
-  for (let i = 0; i < 4; i++) fx.click(C.frames + 0.1 + i * 0.08, 0.5, 3500 + i * 300, 0.3);
-  [81, 83, 86, 88, 90, 93].forEach((m, i) => { I.bell(C.chips + i * 0.05, m, 0.4, 0.3, -0.2, 0.3, buses.sfx); });
-  fx.whoosh(C.absorb, 0.35, 0.4, 2400, 600, -0.4);
-  fx.sparkle(C.absorb + 0.3, 0.7);
-  fx.whistleUp(C.raise, C.clap - C.raise - 0.04, 0.25);
-  clack(C.clap, 1);
-  fx.whoosh(C.zoomIn, C.zoomInEnd - C.zoomIn, 0.5, 300, 4000);
+  // act 1: the card springs in; Claude drops onto it and types
+  fx.pop(C.card + 0.02, 0.7, 0.1);
+  fx.whistleDown(C.hop, C.land - C.hop, 0.22);
+  fx.thud(C.land, 0.55, -0.3); fx.step(C.land + 0.01, 0.5, -0.3); fx.click(C.land, 0.4, 1800, -0.3);
+  keyTimes().forEach((t, i) => fx.key(t, 0.32 + 0.1 * ((i * 7) % 3) / 2, -0.2 + ((i * 5) % 7) * 0.05));
+  fx.pop(C.attach + 0.02, 0.6, 0.35); fx.paper(C.attach, 0.2, 0.25, 0.35);
+  fx.boing(C.stomp, 0.22);
+  fx.thud(C.enter, 0.5, -0.3); fx.thunk(C.enter, 0.6); I.bell(C.enter + 0.02, 86, 0.5, 0.3, 0, 0.3, buses.sfx);
+  // the study
+  fx.whoosh(C.tile - 0.05, 0.3, 0.35, 500, 3200, 0.45); fx.pop(C.tile + 0.1, 0.55, 0.45);
+  for (const t of [2.0, 2.5, 3.0]) A.tone(t, { f0: 300, f1: 170, dur: 0.07, g: 0.06, pan: 0.55 }); // the ball, bouncing in its clip
+  A.hiss(C.scan, { dur: C.scanEnd - C.scan, g: 0.1, type: 'bandpass', f0: 1200, f1: 6000, q: 2, a: 0.3, pan: 0.45 });
+  fx.blip(C.scan + 0.18, 1600, 0.5, 0.04, 0.4); fx.blip(C.scan + 0.24, 2000, 0.5, 0.04, 0.4);
+  [81, 83, 86, 88, 90, 93].forEach((m, i) => { fx.click(chipLand(i), 0.4, 2600, -0.2); I.bell(chipLand(i) + 0.005, m, 0.4, 0.28, -0.2, 0.3, buses.sfx); });
+  I.bell(C.learned, 90, 0.8, 0.4, 0, 0.4, buses.sfx); I.bell(C.learned + 0.08, 95, 0.9, 0.35, 0.1, 0.4, buses.sfx);
+  // make: Claude hops, the style flies out and builds the world, the card docks
+  fx.boing(C.make, 0.25);
+  for (let i = 0; i < 6; i++) fx.whoosh(chipLaunch(i), Math.max(0.12, chipArrive(i) - chipLaunch(i)), 0.18, 900, 3600, -0.5 + i * 0.2);
+  fx.whoosh(C.wipe, 0.5, 0.5, 300, 5000); fx.sparkle(C.wipe + 0.05, 0.6);
+  I.bell(C.sun, 93, 1.0, 0.4, 0.5, 0.5, buses.sfx); fx.sparkle(C.sun + 0.02, 0.5);
+  fx.sub(C.hills, 0.35, 70, 0.5); A.hiss(C.hills, { dur: 0.45, g: 0.12, type: 'lowpass', f0: 600, f1: 2200, q: 0.6, a: 0.15 });
+  [0, 0.05, 0.09, 0.14, 0.2, 0.25].forEach((d, k) => fx.drip(C.flowers + 0.06 + d, 0.35 + 0.05 * k));
+  fx.whoosh(C.dock, C.dockEnd - C.dock, 0.35, 2600, 500, -0.4);
+  fx.thud(C.dockEnd, 0.4, -0.5); fx.pop(C.dockEnd + 0.01, 0.5, -0.5);
+  // the logo pops out of the motion chip
+  fx.pop(C.mark, 0.8); fx.boing(C.mark + 0.01, 0.15);
   // act 2: the short
-  fx.whistleDown(C.mark - 0.25, 0.3, 0.25); fx.pop(C.mark + 0.1, 0.8);
   fx.whistleUp(C.squash, C.invert - C.squash, 0.3);
   fx.whoosh(C.invert, C.invertEnd - C.invert + 0.05, 0.55, 600, 5200);
   I.bell(C.invert + 0.02, 98, 0.8, 0.3, 0, 0.5, buses.sfx);
@@ -144,14 +151,13 @@ function foley(A) {
   [86, 90, 93, 98].forEach((m, k) => I.bell(C.hit + 0.02 + k * 0.045, m, 1.2, 0.4, (k - 1.5) * 0.3, 0.45, buses.sfx));
   fx.crackle(C.hit + 0.15, 1.6, 26, 0.22, 7000, -0.4); fx.crackle(C.hit + 0.15, 1.6, 26, 0.22, 7000, 0.4);
   fx.thud(C.hit + 0.52, 0.35); fx.drip(C.hit + 0.53, 0.7);
-  // act 3: out of the frame, the wrap clap, bunting, confetti, waves
-  fx.whoosh(C.zoomOut, C.zoomOutEnd - C.zoomOut, 0.45, 3800, 300);
-  fx.whistleUp(C.wrap - 0.25, 0.21, 0.2);
-  clack(C.wrap, 1);
-  fx.paper(C.wrap + 0.2, 0.6, 0.35, 0.2);
-  fx.crackle(C.wrap + 0.1, 1.4, 22, 0.18, 7000, 0);
-  fx.squeak(C.wrap + 0.6, 0.15, -0.3); fx.squeak(C.wrap + 0.95, 0.12, 0.35);
-  fx.pop(C.lockup + 0.05, 0.5);
+  // act 3: the credit, the waves, confetti from the pill, the jump together
+  fx.whoosh(C.credit - 0.05, 0.4, 0.3, 800, 3000, -0.5); fx.pop(C.credit + 0.3, 0.5, -0.5);
+  fx.burst(C.wrap + 0.05, 0.6, -0.5); fx.paper(C.wrap + 0.1, 0.8, 0.3, -0.3);
+  fx.crackle(C.wrap + 0.15, 1.2, 22, 0.16, 7000, -0.3);
+  fx.squeak(C.wrap + 0.3, 0.15, -0.5); fx.squeak(C.wrap + 0.6, 0.12, 0.15);
+  fx.boing(C.jump, 0.2); fx.thud(C.jump + 0.5, 0.35); fx.step(C.jump + 0.5, 0.4, -0.5);
+  I.bell(C.jump + 0.25, 93, 0.8, 0.3, 0, 0.45, buses.sfx);
 }
 
 // 16-bit PCM WAV

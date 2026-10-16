@@ -8,6 +8,7 @@
     "serve": "npx serve -l 4104 ../.."
   },
   "dependencies": {
-    "@fontsource/mona-sans": "5.3.0"
+    "@fontsource/mona-sans": "5.3.0",
+    "@fontsource/monaspace-neon": "5.3.0"
   }
 }

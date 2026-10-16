@@ -1,21 +1,20 @@
-// The short Claude makes (1920×1080 coordinates), in the reference video's pastel style. Before the
-// clap the frame plays the reference itself (a bouncing-ball test); after it, the ball bounces out
-// and GitHub's Invertocat drops in, inverts outward (the cut-out cat turns solid, the logo's ring
-// falls into a puddle on the hill) and pops into the official Octocat. The repo card slides in with
-// its Star button at STARS − 1; a star slips out of the sun, the Octocat catches it on its tail and
-// flicks it into the button: Starred, STARS. Gentle confetti.
+// The GitHub layer of the short Claude makes (1920×1080 coordinates), drawn over the pastel world the
+// learned style builds (sky.js): GitHub's Invertocat pops out of the motion chip, inverts outward (the
+// cut-out cat turns solid, the logo's ring falls into a puddle on the hill) and pops into the official
+// Octocat. The repo card slides in with its Star button at STARS − 1; a star slips out of the sun, the
+// Octocat catches it on its tail and flicks it into the button: Starred, STARS.
 import { W, H, clamp, lerp, TAU } from './core.js';
 import { C, STARS, OWNER, REPO } from './timeline.js';
 import { sp, smooth, eio, eout, icon, font, SANS } from './kit.js';
 import { ICONS } from './icons.js';
 import { octocat, GEO } from './octocat.js';
-import { sky, ball, SUN } from './sky.js';
-import { star, sparkle, confettiRain } from './fx.js';
+import { SUN } from './sky.js';
+import { star, sparkle } from './fx.js';
 import { rgba } from './palette.js';
 
 // ---- the logo, sized so its cat head matches the Octocat's head (glyph unit = 18.81 avatar px)
 const U = 18.4;                               // px per glyph unit (disc ≈ 424 px)
-const LOGO = [960, 456];                      // where glyph (12, 12) sits
+export const LOGO = [960, 456];               // where glyph (12, 12) sits
 const HEAD = [226, 165];                      // Octocat head centre (avatar px) = glyph (12, 12)
 const S0 = U / 18.81, S1 = 1.42;
 const GROUND = 908;                           // puddle centre, on the hill
@@ -38,8 +37,11 @@ export function octoPlace(t) {
   const k = sp(t, C.pop, 1.25, 0.62);
   const s = lerp(S0, S1, k), x = LOGO[0];
   let y = lerp(LOGO[1], GROUND - (GEO.puddle.cy - HEAD[1]) * S1, k);
-  const h = t - C.hit - 0.02;                  // the celebration jump
-  let hop = h > 0 && h < 0.5 ? Math.sin(Math.PI * h / 0.5) * 70 : 0;
+  let hop = 0;
+  for (const c of [C.hit + 0.02, C.jump]) {    // the celebration jump; the jump with Claude
+    const h = t - c;
+    if (h > 0 && h < 0.5) hop += Math.sin(Math.PI * h / 0.5) * 70;
+  }
   if (t > C.hit + 0.7) { const b = ((t - C.hit - 0.7) % 1) / 1; hop += Math.max(0, Math.sin(Math.PI * b * 2)) * 6; }
   return { s, x, y: y - hop, hop };
 }
@@ -135,12 +137,12 @@ function repoCard(ctx, t) {
 // ---- the logo hand-off
 function logo(ctx, t) {
   if (t < C.mark || t > C.pop + 0.2) return;
-  const k = sp(t, C.mark, 1.5, 0.5);
-  const drop = (1 - clamp(sp(t, C.mark, 1.6, 0.55), 0, 1.2)) * -380;   // drops in from the sky
+  const k = sp(t, C.mark, 1.5, 0.5);           // springs out of the motion chip
+  const spin = (1 - clamp(sp(t, C.mark, 1.3, 0.45), 0, 1.3)) * -0.5;
   const sq = Math.sin(clamp((t - C.squash) / (C.invert - C.squash)) * Math.PI) * 0.06;
   const pre = t < C.invert ? (1 - sq * 0.5) : 1;
   ctx.save();
-  ctx.translate(LOGO[0], LOGO[1] + drop); ctx.scale(Math.min(1, k * 1.2) * (1 + sq) * pre, Math.min(1, k * 1.2) * (1 - sq) * pre);
+  ctx.translate(LOGO[0], LOGO[1]); ctx.rotate(spin); ctx.scale(Math.min(1, k * 1.2) * (1 + sq) * pre, Math.min(1, k * 1.2) * (1 - sq) * pre);
   ctx.globalAlpha = 1 - smooth((t - C.pop) / 0.07);
   ctx.translate(-12 * U, -12 * U); ctx.scale(U, U);
   const inv = eio((t - C.invert) / (C.invertEnd - C.invert)), R = inv * 13.5;
@@ -178,7 +180,7 @@ function fallingRing(ctx, t) {
 }
 
 // ---- the star: out of the sun, drifting down to the tail tip, riding it, flicked into the button
-function starPos(t) {
+export function starPos(t) {
   if (t < C.starIn || t > C.hit + 0.05) return null;
   if (t < C.catch) {
     const u = (t - C.starIn) / (C.catch - C.starIn), e = eio(u), [tx, ty] = tipAt(C.catch);
@@ -216,14 +218,14 @@ function octoParams(t) {
   const { a: tailAng, grow: tailGrow } = tailAt(t);
   let blink = 0;
   for (const b of [C.alive + 0.05, 6.4, 9.2, 11.9, 13.1]) blink = Math.max(blink, Math.max(0, 1 - Math.abs(t - b) / 0.07));
-  // eyes follow the star, then the card, then Claude (off to the left) at the wrap
+  // eyes follow the star, then the card, then Claude (on its pill, down to the left)
   let look = [0, 0];
   const P = octoPlace(t), head = toScreen(P, [226, 190]);
   if (t > C.starIn && t < C.hit + 0.3) {
     const sp2 = t < C.hit ? (starPos(t) || { x: head[0], y: head[1] - 200 }) : { x: countTarget()[0], y: CARD.cy };
     const dx = sp2.x - head[0], dy = sp2.y - head[1], d = Math.hypot(dx, dy) || 1;
     look = [dx / d, dy / d];
-  } else if (t > C.zoomOut + 0.5) look = [-1, 0.05];
+  } else if (t > C.credit + 0.3) look = [-0.92, 0.4];
   return {
     legs: [L(0), L(1), L(2), L(3)].map(v => (t < C.pop ? 0 : v)),
     tailAng, tailGrow, suckers: clamp((t - C.suckers) / 0.36),
@@ -239,10 +241,9 @@ function octoParams(t) {
   };
 }
 
-// the whole short, in 1920×1080 coordinates
-export function short(ctx, t) {
-  sky(ctx, t);
-  if (t < C.clap + 0.6) ball(ctx, t, { exit: clamp((t - C.clap) / 0.5) });
+// the GitHub layer, in 1920×1080 coordinates
+export function github(ctx, t) {
+  if (t < C.mark) return;
   fallingRing(ctx, t);
   logo(ctx, t);
   if (t >= C.pop) {
@@ -255,6 +256,5 @@ export function short(ctx, t) {
   }
   repoCard(ctx, t);
   starFX(ctx, t);
-  confettiRain(ctx, t - C.hit, { n: 70, seed: 11, life: 6.5, speed: 240 });
 }
 export { STARS };

@@ -16,6 +16,7 @@ export const eout = x => 1 - Math.pow(1 - clamp(x), 3);
 
 // ---------------------------------------------------------------- type
 export const SANS = '"Mona Sans", "Helvetica Neue", Arial, sans-serif';
+export const MONO = '"Monaspace Neon", ui-monospace, Menlo, monospace';
 export function font(ctx, size, weight = 800, fam = SANS, track = 0) {
   ctx.font = `${weight} ${size}px ${fam}`;
   ctx.letterSpacing = track + 'px';
