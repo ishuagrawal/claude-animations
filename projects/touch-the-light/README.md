@@ -1,22 +1,20 @@
 # Touch the Light
 
-A 22-second teaser for the rumored OLED, touchscreen MacBook Pro. A fingertip draws a loop of light
-that becomes the display, the screen answers to touch, and the camera rises to reveal the laptop.
+A 19-second teaser for the rumored OLED, touchscreen MacBook Pro, told only in hints: one soft brush stroke
+of light, moved by fingertip gestures, parts round a hidden island, rubber-bands, folds into a single
+pixel, opens like a lid, and pours out the light that leaves the logo in true black.
 
 ## Model
 
 - **Model:** Claude Opus 5.5 (`claude-opus-5-5`) in Claude Code
-- **Equivalent API cost:** ≈ $7.30 — 0.12M output, 14.3M cache-read, 0.25M cache-write (1h), ~150 uncached input
-  tokens at $4 / $20 per MTok in/out, $0.20 cache read, $8 cache write (1h)
+- **Equivalent API cost:** ≈ $11.40 for the whole session (both versions) — 0.19M output, 24.2M cache-read,
+  0.34M cache-write (1h), ~200 uncached input tokens at $4 / $20 per MTok in/out, $0.20 cache read,
+  $8 cache write (1h)
 
 ## Generate the video
 
-Requires Node 22+, `ffmpeg` on `PATH`, and Playwright's `chrome-headless-shell` (or Google Chrome). From this
-folder:
-
-```bash
-npm install
-```
+Requires Node 22+, `ffmpeg` on `PATH`, and Playwright's `chrome-headless-shell` (or Google Chrome). No npm
+install needed. From this folder:
 
 ```bash
 node render/render.mjs --audio-only

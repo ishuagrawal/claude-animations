@@ -1,22 +1,17 @@
 // Beat times (seconds), shared by picture and score.
 export const T = {
-  touch: 0.4,               // first fingertip contact at the top-center seam
-  gest: [0.55, 3.75],       // the finger draws a loose lasso
-  snap: 3.55,               // the lasso springs into the display's rounded rectangle
-  seal: 4.2,                // the two ends fuse: a pulse runs round the frame
-  pill: [4.65, 5.4],        // a drop of light settles into the camera island
-  swipe: [5.85, 6.02, 6.55],// touch down, drag starts, lift (then the trail flings off-screen)
-  pinch: [7.35, 7.55, 8.6], // two fingers down, start moving, meet (seed of light remains)
-  pull: [8.9, 11.9],        // camera pulls back and rises: it's a laptop
-  hinge: [9.5, 10.1],
-  base: [9.85, 10.95],
-  front: [10.45, 11.15],
-  rim: [10.6, 12.5],        // amber light runs along the lid's edge
-  leaf: [11.85, 12.25],
-  pour: [12.15, 13.45],     // light pours down both sides of the logo and meets at the bottom
-  close: [15.0, 16.55],     // the lid closes; everything folds into one line
-  line: [16.6, 17.5],
-  text1: [17.4, 19.6],
-  text2: [19.8, 22.0],
-  end: 22.5,
+  touch: 0.35,               // a fingertip lands
+  stroke: [0.5, 3.2],        // one soft brush stroke loops across; it parts round the hidden island
+  islandPass: 1.3,           // the stroke's head reaches the island
+  island: [3.45, 4.5],       // the island breathes wider and back: the fibers make room
+  flick: [4.75, 4.87, 5.17], // finger down, drag up, release: the light scrolls, overshoots, rubber-bands
+  pinch: [6.15, 6.35, 7.35], // two fingers down, gather, the light collapses into one point
+  pixel: [7.45, 9.0],        // the point opens into one pixel's red, green and blue emitters, then folds back
+  line: [9.0, 9.7],          // the point draws out into a line...
+  lid: [9.85, 11.7],         // ...which splits: the top half lifts open like a lid
+  emit: [11.5, 13.6],        // the open "screen" emits a sheet of light across the frame
+  carve: 12.7,               // the sheet reaches the logo: it flows round it, leaving true black
+  drain: [15.0, 16.3],       // the light drains back to the logo's edge
+  fade: [16.5, 18.0],        // the edge cools to amber and goes out (the reference's exit)
+  end: 18.8,
 };

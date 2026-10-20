@@ -19,7 +19,7 @@ const params = new URLSearchParams(location.search);
 if (params.has('render')) {
   const small = document.createElement('canvas');
   window.FILM = {
-    ready: document.fonts.load('500 40px Inter').then(() => document.fonts.load('600 40px Inter')).then(() => document.fonts.ready).then(() => film.load?.()).then(() => true),
+    ready: Promise.resolve(film.load?.()).then(() => true),
     bench(t) { const a = performance.now(); for (let i = 0; i < 2; i++) draw(t).getContext("2d").getImageData(0, 0, 1, 1); const b = performance.now(); draw(t).toDataURL("image/png"); return [(b - a) / 2, performance.now() - b]; },
     info: () => ({ duration: film.duration, fps: FPS, w: W, h: H }),
     frame(t, s = 1) {
@@ -44,7 +44,6 @@ if (params.has('render')) {
 }
 
 async function preview() {
-  await document.fonts.load('500 40px Inter'); await document.fonts.load('600 40px Inter');
   await film.load?.();
   const view = document.getElementById('view');
   const vctx = view.getContext('2d');
