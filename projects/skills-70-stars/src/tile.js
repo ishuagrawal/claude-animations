@@ -1,5 +1,6 @@
 // The reference: a little video tile (thumbnail + play button + progress bar) hanging on a string, like the
-// reference's bead on a string. Each thumbnail is a tiny "film" in one of the four looks.
+// reference's bead on a string. Each thumbnail is a tiny "film" in one of the four looks. With o.image the tile is
+// a still instead: a white-bordered print with a picture badge and no play button or progress bar (the tease).
 import { P, rgba } from './palette.js';
 import { drop } from './soft.js';
 import { TAU, clamp, ease, lerp } from './core.js';
@@ -50,10 +51,30 @@ function thumb(ctx, i, w, h, t) {
   ctx.restore();
 }
 
+// a still picture: dawn sky, a sun and two mountains — the universal "image" glyph, painted
+function still(ctx, w, h) {
+  const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#9fc9f2'); g.addColorStop(1, '#f7d7c2');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#fff2b8'; ctx.beginPath(); ctx.arc(w * 0.72, h * 0.32, h * 0.13, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#7a9fd1'; ctx.beginPath(); ctx.moveTo(-10, h); ctx.lineTo(w * 0.32, h * 0.38); ctx.lineTo(w * 0.62, h); ctx.fill();
+  ctx.fillStyle = '#5b7fb6'; ctx.beginPath(); ctx.moveTo(w * 0.36, h); ctx.lineTo(w * 0.68, h * 0.52); ctx.lineTo(w + 10, h); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(w * 0.32, h * 0.38); ctx.lineTo(w * 0.385, h * 0.48); ctx.lineTo(w * 0.33, h * 0.46); ctx.lineTo(w * 0.27, h * 0.48); ctx.fill();
+}
+function imageBadge(ctx, x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  const b = new Path2D(); b.roundRect(-22, -18, 44, 36, 7);
+  ctx.fillStyle = rgba(P.cream, 0.96); ctx.fill(b);
+  ctx.strokeStyle = P.ink; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.roundRect(-14, -11, 28, 22, 3); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-12, 9); ctx.lineTo(-3, -1); ctx.lineTo(3, 5); ctx.lineTo(7, 1); ctx.lineTo(12, 9); ctx.stroke();
+  ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(6, -5, 2.6, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
 // (x, y) = where the string meets the tile's top; o: ref (0-3, may be fractional during a flip), swing (rad),
 // play 0..1 (progress), flip 0..1 (card spin that swaps the thumbnail at 0.5), s (scale), stringTop
 export function tile(ctx, x, y, o = {}) {
-  const { ref = 0, nextRef = ref, swing = 0, play = 0, flip = 0, s = 1, stringTop = -40, alpha = 1, shadow = true } = o;
+  const { ref = 0, nextRef = ref, swing = 0, play = 0, flip = 0, s = 1, stringTop = -40, alpha = 1, shadow = true, image = false, flash = 0 } = o;
   if (alpha <= 0) return;
   const { w, h, r } = TILE;
   ctx.save();
@@ -73,6 +94,22 @@ export function tile(ctx, x, y, o = {}) {
   ctx.fillStyle = P.gold; ctx.beginPath(); ctx.arc(0, 4, 4, 0, TAU); ctx.fill();
   const card = new Path2D(); card.roundRect(-w / 2, 12, w, h, r);
   if (shadow) drop(ctx, card, { dx: 14, dy: 16, blur: 22, a: 0.24 });
+  if (image) {
+    // a print: white border, the still, a picture badge — no play button, no progress bar
+    const print = new Path2D(); print.roundRect(-w / 2, 12, w, h, 6);
+    ctx.fillStyle = '#fffdf8'; ctx.fill(print);
+    ctx.save(); ctx.beginPath(); ctx.rect(-w / 2 + 14, 26, w - 28, h - 28); ctx.clip();
+    ctx.translate(-w / 2 + 14, 26); still(ctx, w - 28, h - 28);
+    ctx.restore();
+    imageBadge(ctx, -w / 2 + 44, 12 + h - 38, 1);
+    if (flash > 0) {
+      ctx.save(); ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = rgba('#ffffff', flash); ctx.fill(print);
+      ctx.restore();
+    }
+    ctx.restore();
+    return { center: [x, y + (12 + h / 2) * s], bottom: y + (12 + h) * s };
+  }
   ctx.fillStyle = P.ink; ctx.fill(card);
   const inset = new Path2D(); inset.roundRect(-w / 2 + 9, 21, w - 18, h - 18, r - 7);
   ctx.save(); ctx.clip(inset);

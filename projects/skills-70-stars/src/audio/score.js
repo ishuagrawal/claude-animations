@@ -85,7 +85,7 @@ function music(A, I) {
   for (let k = 0; k < 6; k++) I.shaker(bar(3) + k * E8, 0.7);
 
   // from the drop: the groove, with the band's instruments following the current look
-  const endGroove = C.freeze;
+  const endGroove = C.typeDone;
   for (let n = 4; bar(n) < endGroove; n++) {
     const ch = chordAt(n);
     for (let e = 0; e < 8; e++) {
@@ -150,41 +150,23 @@ function music(A, I) {
   // the card: the melodic hook enters (bell + EP), two bars
   const hook = [[0, 76, 0.5], [0.5, 79, 0.5], [1, 81, 1], [2, 79, 0.5], [2.5, 76, 0.5], [3, 74, 1], [4, 72, 0.5], [4.5, 74, 0.5], [5, 76, 1], [6, 79, 1.5], [7.5, 81, 0.5]];
   hook.forEach(([b, m, d]) => { const t = bar(9) + b * BEAT; inst.bell(t, m, d * BEAT * 1.4, 1.1, 0.15); I.ep(t, m - 12, d * BEAT, 0.6, -0.1); });
-  // toss → tunnel: riser + tom fill; landing hit
-  A.fx.riser(C.toss - 0.1, C.land2 - C.toss + 0.1, 0.8);
-  for (let k = 0; k < 6; k++) D.tom(C.toss + 0.35 + k * S16 * 1.1, 180 - k * 18, 0.7, (k - 2.5) * 0.2);
-  D.crash(C.land2, 0.6);
-  // candles ripple: a bell glissando
-  for (let k = 0; k < 10; k++) inst.bell(C.candle + 0.1 + k * 0.045, [72, 74, 76, 79, 81, 84, 86, 88, 91, 93][k], 0.6, 0.45, (k - 5) * 0.1);
-  // party
-  D.crash(C.party, 1); inst.stab(C.party, [60, 64, 67, 72], 0.4, 0.9);
-  hook.filter(([b]) => b < 4).forEach(([b, m, d]) => { const t = C.party + b * BEAT; inst.bell(t, m + 12, d * BEAT * 1.4, 1.2, -0.15); I.ep(t, m, d * BEAT, 0.8, 0.1); });
-  [0, 2].forEach(b => inst.stab(C.party + b * BEAT, [60, 64, 67, 71], 0.18, 0.7));
-  for (let k = 0; k < 8; k++) D.hat(C.party + k * E8 + E8 / 2, 0.5, true);
-  D.crash(C.cannons, 0.8);
-  // FREEZE: the band cuts; a tape-stop of the chord slides down and dies
-  M.gain.setValueAtTime(MUSIC_GAIN, C.freeze - 0.01); M.gain.linearRampToValueAtTime(0.0001, C.freeze + 0.015);
-  M.gain.setValueAtTime(0.0001, C.typeDone - 0.06); M.gain.linearRampToValueAtTime(MUSIC_GAIN, C.typeDone - 0.02);
-  tapeStop(A, C.freeze, [48, 60, 64, 67, 71]);
+  // the celebration on the card: cannons on the downbeat, hits on 1 and 3, open hats
+  D.crash(C.cheer, 1); inst.stab(C.cheer, [60, 64, 67, 72], 0.4, 0.9);
+  [2, 4, 6].forEach(b => inst.stab(C.cheer + b * E8, [60, 64, 67, 71], 0.18, 0.7));
+  for (let k = 0; k < 8; k++) D.hat(C.cheer + k * E8 + E8 / 2, 0.5, true);
+  for (let k = 0; k < 4; k++) D.tom(C.exit - 0.33 + k * S16 * 0.5, 190 - k * 22, 0.6, (k - 1.5) * 0.3); // fill into the end type
   // end type lands: the last chord + bells, ringing out into silence
   inst.stab(C.typeDone, [48, 60, 64, 67, 71, 74], 1.2, 0.9, 0.5);
   [72, 76, 79, 83, 86].forEach((m, k) => inst.bell(C.typeDone + k * 0.06, m, 2.2, 0.9, (k - 2) * 0.2));
   inst.bass(C.typeDone, 48, 1.4, 1.0);
   D.kick(C.typeDone, 0.9);
+  // the tease: a hushed suspended pad and an unresolved music-box question; "soon" answers with two bells
+  inst.pad(C.imgIn, [60, 62, 67], C.snap - C.imgIn + 0.3, 0.9, 1400);
+  [79, 84, 86].forEach((m, k) => inst.musicbox(C.imgIn + 0.15 + k * E8, m, 1));
+  inst.musicbox(C.erase + 0.36, 81, 0.8);
+  inst.bell(C.soon, 86, 1.2, 0.9, 0.3); inst.bell(C.soon + E8, 91, 1.4, 0.8, 0.3);
 }
 const BAR_LEN = () => BEAT * 4;
-
-function tapeStop(A, t, notes) {
-  const ctx = A.ctx;
-  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.01); g.gain.setTargetAtTime(0.0001, t + 0.25, 0.12);
-  const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(3000, t); f.frequency.exponentialRampToValueAtTime(200, t + 0.55);
-  notes.forEach(m => {
-    const o = ctx.createOscillator(); o.type = 'sawtooth';
-    o.frequency.setValueAtTime(mtof(m), t); o.frequency.exponentialRampToValueAtTime(mtof(m) / 5, t + 0.55);
-    o.connect(f); o.start(t); o.stop(t + 0.8);
-  });
-  f.connect(g); g.connect(A.buses.sfx);
-}
 
 // ------------------------------------------------------------- foley
 function foley(A, I) {
@@ -231,30 +213,21 @@ function foley(A, I) {
   const typeStart = C.card - 0.45;
   for (let i = 0; i < 26; i++) fx.key(typeStart + i / 30 + 0.01, 0.55, 0.1);
   fx.ching(C.card + 0.6, 0.6);
-  // toss + tunnel + landing
-  fx.whoosh(C.toss - 0.1, 0.4, 0.8, 300, 3000);
-  fx.whoosh(C.toss + 0.3, C.land2 - C.toss - 0.3, 0.6, 3000, 200);
-  fx.thud(C.land2, 1); fx.sub(C.land2, 0.4, 70, 0.4);
-  // E: lid, morph, candles, the last one, flames
-  fx.pop(C.lid, 1); fx.whoosh(C.lid, 0.45, 0.6, 800, 3000);
-  fx.sparkle(C.lid + 0.3, 0.6);
-  for (let i = 0; i < 10; i++) if (i !== 2) fx.pop(C.lid + 0.5 + i * BEAT / 8, 0.35, (i - 5) * 0.1);
-  fx.thunk(C.candle, 0.5); fx.click(C.candle, 0.8, 2600);
-  for (let k = 0; k < 10; k++) hiss(C.candle + 0.1 + k * 0.045, { dur: 0.12, g: 0.05, type: 'lowpass', f0: 1400, q: 0.5 });
-  // F: party, cannons, the jump
-  fx.burst(C.cannons, 0.6, -0.7, 0.6); fx.burst(C.cannons + 0.02, 0.6, 0.7, 0.6);
-  fx.whistleUp(C.cannons + BEAT * 0.6 + 0.18, C.freeze - C.cannons - BEAT * 0.6 - 0.15, 0.6);
-  // G: shutter, shrink, grab, flip, lift, bars, landing, easel, dab
-  shutter(A, C.freeze);
-  fx.whoosh(C.shrink, 0.6, 0.35, 2000, 600);
-  fx.step(C.grab, 0.6);
-  fx.paper(C.flip, 0.35, 0.9); fx.whoosh(C.flip, 0.4, 0.4, 800, 2400);
-  fx.whoosh(C.type - 0.15, 0.45, 0.6, 400, 2500);
-  for (let i = 0; i < 3; i++) fx.thud(C.type + 0.15 + i * BEAT / 2, 0.5, (i - 1) * 0.3);
+  // the celebration and the put-away
+  fx.burst(C.cheer, 0.6, -0.7, 0.6); fx.burst(C.cheer + 0.02, 0.6, 0.7, 0.6);
+  fx.whoosh(C.exit, 0.45, 0.7, 2500, 300);
+  // end type, Claude lands on the 0
+  for (let i = 0; i < 3; i++) fx.thud(C.type + 0.15 + i * BEAT / 4, 0.5, (i - 1) * 0.3);
   fx.swoosh(C.typeDone, 0.7);
   fx.thud(C.typeDone + 0.3, 0.5); fx.squeak(C.typeDone + 0.36, 0.3);
-  fx.pop(C.typeDone + 0.95, 0.25, 0.7);
-  fx.drip(C.dab, 0.7); fx.sparkle(C.dab + 0.04, 0.5);
+  // the tease: typing, the picture lowering, backspacing "video", "soon", the camera flash
+  for (let i = 0; i < 26; i++) fx.key(C.cmd + i / 30 + 0.01, 0.5, 0.05);
+  fx.whoosh(C.imgIn, 0.7, 0.35, 1200, 400); fx.tick(C.imgIn + 0.7, 0.8); fx.tick(C.imgIn + 1.0, 0.5, true);
+  for (let i = 0; i < 5; i++) { fx.click(C.erase + i * 0.06, 0.7, 1600, 0.05); tone(C.erase + i * 0.06, { type: 'triangle', f0: 200, f1: 150, dur: 0.03, g: 0.1 }); }
+  fx.pop(C.soon, 0.7, 0.3);
+  shutter(A, C.snap);
+  hiss(C.snap + 0.01, { dur: 0.35, g: 0.18, type: 'highpass', f0: 5000, q: 0.5 }); // the flash
+  tone(C.snap + 0.02, { f0: 5200, f1: 2600, dur: 0.4, g: 0.025 }); // flash recharge whine
 }
 
 function shutter(A, t) {

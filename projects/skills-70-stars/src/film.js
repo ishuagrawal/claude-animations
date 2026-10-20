@@ -6,10 +6,9 @@ import { loadFonts } from './type.js';
 import { aOpen } from './shots/a_open.js';
 import { bConfig } from './shots/b_config.js';
 import { cCard } from './shots/c_card.js';
-import { eCake } from './shots/e_cake.js';
 import { gEnd } from './shots/g_end.js';
 
-const shots = [...aOpen, ...bConfig, ...cCard, ...eCake, ...gEnd].sort((a, b) => a.start - b.start);
+const shots = [...aOpen, ...bConfig, ...cCard, ...gEnd].sort((a, b) => a.start - b.start);
 
 export const film = {
   duration: C.end,

@@ -29,21 +29,17 @@ export const C = {
   looks: [beat(6, 2), beat(7, 3), bar(8), beat(8, 3)], // soft → pixel → ink → neon (flick + reveal on each)
   pullback: bar(9),          // camera pulls back: the party is a video in a card
   card: beat(9, 2.5),        // card settled; caption `/skills:video-by-reference` readable
-  // C/D · toss + tunnel
-  toss: beat(10, 3),
-  land2: bar(11),            // gift box lands (top-down)
-  lid: beat(11, 2),          // lid pops → square morphs into the cake
-  candle: beat(11, 3),       // a finger sets the last candle; flames pop on 16ths
-  party: bar(12),            // cut: side view of the party (blue)
-  cannons: beat(12, 3),      // confetti cannons; Claude jumps
-  freeze: bar(13),           // FREEZE at the apex: shutter, tape stop
-  // G · the still → canvas → thank-you
-  shrink: bar(13) + 0.12,
-  grab: beat(13, 2) - 0.05,
-  flip: beat(13, 2.5),
-  type: beat(13, 4),         // stretcher bars fly into the end type
-  typeDone: bar(14),
-  dab: bar(14) + 3.0,        // a single coral dab on the corner canvas (the tease)
-  fade: bar(14) + 3.9,
-  end: bar(14) + 4.35,
+  // C · the celebration happens on the card, then it's put away
+  cheer: bar(10),            // confetti cannons around the card; the film inside jumps to the blue finale party
+  exit: beat(10, 3.5),       // the hands drop the card out of frame
+  type: beat(10, 4),         // ink bars drop (16ths) …
+  typeDone: bar(11),         // … and become "70+"; the last chord
+  // G · the tease: the opening's setup again, but the reference is a still image
+  cmd: bar(11) + 0.6,        // "> /skills:video-by-reference" types out under the thank-you (30 chars/s)
+  imgIn: beat(11, 3),        // an image tile lowers on a string; Claude looks up at it
+  erase: bar(12),            // "video" is backspaced: "> /skills:▌-by-reference"
+  soon: beat(12, 2),         // a "soon" tag pops next to it
+  snap: beat(12, 4),         // the image tile flashes like a camera
+  fade: bar(13) + 0.25,
+  end: bar(13) + 0.75,
 };

@@ -1,13 +1,13 @@
 # Seventy (skills-70-stars)
 
-A ~39-second thank-you for 70+ stars on [ishuagrawal/skills](https://github.com/ishuagrawal/skills) in the style of allkustom's
+A ~33-second thank-you for 70+ stars on [ishuagrawal/skills](https://github.com/ishuagrawal/skills) in the style of allkustom's
 IKEA "Together" motion piece: the 70th star lands, and Claude throws a party that `video-by-reference` restyles with every reference it's handed.
 
 ## Model
 
 - **Model:** Claude Opus 5.5 (`claude-opus-5-5`) in Claude Code
-- **Equivalent API cost:** ≈ $26 — 0.27M output, 81M cache-read, 0.56M cache-write (1h), ~440 uncached input tokens
-  at $4 / $20 per MTok in/out, $0.20 cache read, $8 cache write (1h)
+- **Equivalent API cost:** ≈ $32 for the whole session (both versions) — 0.31M output, 100M cache-read, 0.64M cache-write
+  (1h), ~500 uncached input tokens at $4 / $20 per MTok in/out, $0.20 cache read, $8 cache write (1h)
 
 ## Generate the video
 
