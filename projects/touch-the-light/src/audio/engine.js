@@ -12,7 +12,7 @@ export function makeEngine(ctx) {
   limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.002; limiter.release.value = 0.12;
   const glue = ctx.createDynamicsCompressor();
   glue.threshold.value = -22; glue.knee.value = 10; glue.ratio.value = 2; glue.attack.value = 0.02; glue.release.value = 0.3;
-  const master = ctx.createGain(); master.gain.value = 1.8;
+  const master = ctx.createGain(); master.gain.value = 2.1;
   const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 28;
   master.connect(hp); hp.connect(glue); glue.connect(limiter); limiter.connect(ctx.destination);
 

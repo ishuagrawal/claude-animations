@@ -22,7 +22,7 @@ export function ribbon(ctx, poly, o) {
     map, N = 36, width = () => 40, side = 1, centered = false,
     a = 0, b = poly.L, comb = 0, combA = 0, lw = 1.1, gain = 1, time = 0, seed = 0,
     shimmer = null, fade = null, rim = 0, rimCol = AMBER, accents = ACCENTS, accentGain = 1, tip = 0, chunk = 7,
-    levels = null, levelStep = 1, wRef = 0,
+    levels = null, levelStep = 1, wRef = 0, deform = null, breakDist = 14,
   } = o;
   if (b - a < 0.5 || gain <= 0.002) return;
   const n = poly.n;
@@ -37,23 +37,16 @@ export function ribbon(ctx, poly, o) {
     return levels[Math.min(levels.length - 1, Math.round(d / levelStep))];
   };
 
-  // one fiber from ai to bi at band position uAt(s); shade(sMid, u) -> css color or null
+  // one fiber from ai to bi at band position uAt(s); shade(sMid, u, g) -> css color or null.
+  // deform(x, y) -> [x, y, gain] bends fibers in the frame (e.g. round a void); where neighbouring
+  // points fly apart (a fiber splitting round an obstacle) the stroke breaks instead of bridging.
   const fiber = (uAt, ai, bi, shade, maxPts) => {
-    let pts = [], ss = [], us = [];
-    const at = (s, k, tt) => { // point at vertex k (+ fraction tt toward k+1) on the fiber's level
-      const u = uAt(s), P = level(u), k1 = Math.min(n - 1, k + 1);
-      const x = P.x[k] + (P.x[k1] - P.x[k]) * tt, y = P.y[k] + (P.y[k1] - P.y[k]) * tt;
-      let nx = P.nx[k] + (P.nx[k1] - P.nx[k]) * tt, ny = P.ny[k] + (P.ny[k1] - P.ny[k]) * tt;
-      const l = Math.hypot(nx, ny) || 1;
-      const w = tt === 0 && wv[k] ? wv[k] : width(s);
-      const d = off(u) * w;
-      pts.push(map(x + nx / l * d, y + ny / l * d)); ss.push(s); us.push(u);
-    };
-    const frac = s => { const k = poly.seg(s), k1 = Math.min(n - 1, k + 1); return [k, (s - poly.s[k]) / ((poly.s[k1] - poly.s[k]) || 1)]; };
+    let pts = [], ss = [], us = [], gs = [], prev = null;
     const flush = final => {
       if (pts.length >= 2) {
         const mid = pts.length >> 1;
-        const c = shade((ss[0] + ss[ss.length - 1]) / 2, us[mid]);
+        let g = 0; for (const v of gs) g += v; g /= gs.length;
+        const c = shade((ss[0] + ss[ss.length - 1]) / 2, us[mid], g);
         if (c) {
           ctx.strokeStyle = c;
           ctx.beginPath();
@@ -62,8 +55,24 @@ export function ribbon(ctx, poly, o) {
           ctx.stroke();
         }
       }
-      if (!final) { pts = [pts[pts.length - 1]]; ss = [ss[ss.length - 1]]; us = [us[us.length - 1]]; }
+      if (!final && pts.length) { pts = [pts[pts.length - 1]]; ss = [ss[ss.length - 1]]; us = [us[us.length - 1]]; gs = [gs[gs.length - 1]]; }
     };
+    const at = (s, k, tt) => { // point at vertex k (+ fraction tt toward k+1) on the fiber's level
+      const u = uAt(s), P = level(u), k1 = Math.min(n - 1, k + 1);
+      const x = P.x[k] + (P.x[k1] - P.x[k]) * tt, y = P.y[k] + (P.y[k1] - P.y[k]) * tt;
+      let nx = P.nx[k] + (P.nx[k1] - P.nx[k]) * tt, ny = P.ny[k] + (P.ny[k1] - P.ny[k]) * tt;
+      const l = Math.hypot(nx, ny) || 1;
+      const w = tt === 0 && wv[k] ? wv[k] : width(s);
+      const d = off(u) * w;
+      let px = x + nx / l * d, py = y + ny / l * d, g = 1;
+      if (deform) {
+        [px, py, g] = deform(px, py);
+        if (prev && Math.hypot(px - prev[0], py - prev[1]) > breakDist) { flush(true); pts = []; ss = []; us = []; gs = []; }
+        prev = [px, py];
+      }
+      pts.push(map(px, py)); ss.push(s); us.push(u); gs.push(g);
+    };
+    const frac = s => { const k = poly.seg(s), k1 = Math.min(n - 1, k + 1); return [k, (s - poly.s[k]) / ((poly.s[k1] - poly.s[k]) || 1)]; };
     const [ka, ta] = frac(ai); at(ai, ka, ta);
     for (let k = ka + 1; k < n && poly.s[k] < bi; k++) { at(poly.s[k], k, 0); if (pts.length > maxPts) flush(false); }
     const [kb, tb] = frac(bi); at(bi, kb, tb);
@@ -85,9 +94,9 @@ export function ribbon(ctx, poly, o) {
     let col = u < 0.45 ? mix(HI, MID, u / 0.45) : mix(MID, LO, (u - 0.45) / 0.55);
     col = mix(col, [col[0] * 0.9, col[1] * 0.97, col[2] * 1.06], h2);
     const rw = Math.pow(1 - u, 6);
-    fiber(() => u, ai, bi, s => {
+    fiber(() => u, ai, bi, (s, _u, dg) => {
       const rk = (typeof rim === 'function' ? rim(s) : rim) * rw;
-      let v = I * f * gain * (0.86 + 0.14 * Math.sin(s * 0.021 + h1 * 40 - time * 0.9));
+      let v = I * f * gain * dg * (0.86 + 0.14 * Math.sin(s * 0.021 + h1 * 40 - time * 0.9));
       if (shimmer) v *= shimmer(s, u);
       if (tip) v *= 1 + tip * Math.exp(-Math.max(0, b - s) / 40);
       if (v < 0.004) return null;
@@ -100,14 +109,15 @@ export function ribbon(ctx, poly, o) {
   if (accents && accentGain > 0) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'butt';
     ctx.lineWidth = lw * 1.15 * SS;
     for (const A of accents) {
       const ai = a + combA * 0.5, bi = b - comb * 0.5;
       if (bi - ai < 1) continue;
       const env = s => Math.pow(Math.max(0, Math.sin(s * A.f2 + A.ph2 + seed)), 3);
       const uAt = s => clamp(A.u0 + A.amp * Math.sin(s * A.f + A.ph + time * 0.25), 0.02, 0.98);
-      fiber(uAt, ai, bi, (s, u) => {
-        let v = env(s) * A.g * accentGain * gain * (fade ? fade(u) : 1);
+      fiber(uAt, ai, bi, (s, u, dg) => {
+        let v = env(s) * A.g * accentGain * gain * dg * (fade ? fade(u) : 1);
         if (shimmer) v *= shimmer(s, u);
         return v > 0.01 ? `rgba(${A.col[0]},${A.col[1]},${A.col[2]},${Math.min(1, v)})` : null;
       }, 10);
