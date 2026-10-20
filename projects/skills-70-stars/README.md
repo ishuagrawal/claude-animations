@@ -1,4 +1,4 @@
-# Seventy (skills-70-stars)
+# skills-70-stars
 
 A ~33-second thank-you for 70+ stars on [ishuagrawal/skills](https://github.com/ishuagrawal/skills) in the style of allkustom's
 IKEA "Together" motion piece: the 70th star lands, and Claude throws a party that `video-by-reference` restyles with every reference it's handed.
