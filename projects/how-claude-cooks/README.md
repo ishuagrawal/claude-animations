@@ -2,6 +2,7 @@
 
 A living infographic: one hand-inked kitchen-line poster that animates how an LLM writes a reply. Your order is
 chopped into tokens, cooked through the layers, scored and spun, and plated one token per lap until the bell rings.
+The flow started as a statechart drawn with the [statechart skill](https://github.com/cursor/plugins/tree/main/pstack/skills/statechart).
 
 ## Model
 
