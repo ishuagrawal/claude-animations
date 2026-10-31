@@ -274,48 +274,71 @@ function rowPrep() {
   note(1568, 450, "all at once", { anchor: "end" });
 }
 
+// A burner flame, drawn as a teardrop.
+function flame(x, y) {
+  path(`M${x},${y} c-5,-4 -4,-10 0,-14 c4,4 5,10 0,14 Z`, TERRA, { sw: 1.1 });
+  path(`M${x},${y - 1} c-2,-2 -2,-5 0,-7 c2,2 2,5 0,7 Z`, MUST, { stroke: "none" });
+}
+
+// One station of the line: a sign, a burner with a sheet tray of tokens, the chef, and the oven door
+// carrying the station's verb.
 function station(c, name, o) {
   path(`M${c - 34},404 V440 M${c + 34},404 V440`, "none", { sw: 1.4 });
   rect(c - 58, 440, 116, 32, WHITE, { rx: 2 });
   hrect(c + 52, 442, 4, 28, "hatchDense");
   text(c, 462, name, { size: 18, weight: 700, anchor: "middle" });
-  claude(c + 60, 546, 0.5, { eyes: o.eyes, legs: false });
-  const t = tiles(c - 160, 577, PROMPT, { size: 11, gap: 3, fills: o.fills });
-  text(c - 10, 654, o.verb, { size: 17, weight: 700, anchor: "middle" });
-  text(c - 10, 676, o.tech, { size: 14, italic: true, anchor: "middle", color: GREY });
+  claude(c + 62, 538, 0.5, { eyes: o.eyes, legs: false });
+  // burner and tray
+  for (let x = c - 150; x <= c + 30; x += 30) flame(x, 596);
+  path(`M${c - 166},581 V596 M${c + 50},581 V596`, "none", { sw: 2 });
+  rect(c - 172, 574, 228, 7, STEEL, { rx: 2, sw: 1.6 });
+  hrect(c - 172, 577, 228, 4, "hatchDense");
+  const fills = PROMPT.map((_, i) => (o.fills && o.fills[i]) || o.tone);
+  const t = tiles(c - 164, 555, PROMPT, { size: 11, gap: 3, fills });
+  // oven door
+  for (let k = 0; k < 5; k++) circ(c - 140 + k * 45, 622, 4.5, WHITE, { sw: 1.3 });
+  rect(c - 160, 632, 230, 54, WHITE, { rx: 3, sw: 1.6 });
+  path(`M${c - 130},639 H${c + 40}`, "none", { sw: 3 });
+  rect(c - 146, 646, 202, 36, CREAM, { rx: 2, sw: 1.2 });
+  hrect(c + 40, 648, 14, 32, "hatchLight");
+  text(c - 45, 662, o.verb, { size: 16, weight: 700, anchor: "middle" });
+  text(c - 45, 677, o.tech, { size: 13, italic: true, anchor: "middle", color: GREY });
   return t;
 }
 
 function rowLine() {
   rect(418, 596, 1104, 14, WOOD);
   hrect(418, 604, 1104, 6, "hatchDense");
-  rect(428, 610, 1084, 80, CREAM);
-  for (let x = 488; x < 1512; x += 62) path(`M${x},684 V690`, "none", { sw: 1.1 });
+  rect(428, 610, 1084, 82, CREAM);
 
-  // layer 1: every token tastes the ones before it, never the ones after
-  const t1 = station(1350, "layer 1", { eyes: "wide", verb: "taste back", tech: "attention" });
-  const mk = t1[3];
-  [0, 1, 2].forEach((k) => {
-    const a = t1[k];
-    path(`M${mk.cx},575 Q${(mk.cx + a.cx) / 2},${552 - (3 - k) * 6} ${a.cx},575`, "none", { stroke: RED, sw: 1.5, dash: "3 4" });
+  // layer 1: "en" looks back at every earlier token, hardest at "ram" (so it knows it's ramen),
+  // and never at the ones after it
+  const t1 = station(1350, "layer 1", { eyes: "wide", tone: CREAM, fills: [0, 0, 0, 0, 0, TERRA], verb: "taste back", tech: "attention" });
+  const en = t1[5];
+  [1, 1, 1.3, 2.2, 3.8].forEach((sw, k) => {
+    const a = t1[k], peak = 546 - (en.cx - a.cx) * 0.18;
+    path(`M${en.cx},553 Q${(en.cx + a.cx) / 2},${peak} ${a.cx},553`, "none", { stroke: RED, sw, dash: sw < 2 ? "3 4" : null });
   });
-  const rx = t1[4].x - 1.5;
-  rect(rx - 2, 552, 4, 24, MUST, { sw: 1.2 });
-  circ(rx, 550, 4, MUST, { sw: 1.2 });
-  path(`M${rx},557 Q${rx + 18},570 ${rx + 36},557`, "none", { stroke: RED, sw: 2.6 });
+  const rx = t1[6].x - 1.5;
+  rect(rx - 2, 530, 4, 26, MUST, { sw: 1.2 });
+  circ(rx, 528, 4, MUST, { sw: 1.2 });
+  path(`M${rx},535 Q${rx + 16},548 ${rx + 30},535`, "none", { stroke: RED, sw: 2.6 });
 
-  // layer 2: each token seasoned on its own
-  station(1010, "layer 2", { eyes: "squint", verb: "season", tech: "feed-forward" });
-  path("M1052,538 L1066,524 L1082,540 L1068,554 Z", WHITE, { sw: 1.6 });
-  path("M1053,537 L1067,523", "none", { sw: 4 });
-  for (const [px, py] of [[1040, 556], [1030, 566], [1046, 570], [1016, 566], [1006, 572], [1024, 574], [990, 570]]) circ(px, py, 1.6, INK, { stroke: "none" });
+  // layer 2: every token gets its own pinch of seasoning
+  const t2 = station(1010, "layer 2", { eyes: "squint", tone: "#f3dfae", verb: "season", tech: "feed-forward" });
+  path("M1052,524 L1066,510 L1082,526 L1068,540 Z", WHITE, { sw: 1.6 });
+  path("M1053,523 L1067,509", "none", { sw: 4 });
+  t2.forEach((tl) => [528, 536, 544].forEach((y, j) => circ(tl.cx + (j - 1) * 2, y, 1.6, INK, { stroke: "none" })));
 
-  // layer N: fully cooked
-  station(580, "layer N", { eyes: "happy", verb: "cooked", tech: "last layer", fills: Array(7).fill(MUST) });
-  path("M462,560 c-6,-10 6,-14 0,-24 M520,560 c-6,-10 6,-14 0,-24 M578,560 c-6,-10 6,-14 0,-24", "none", { sw: 1.4 });
+  // layer N: fully cooked; the last token now carries what comes next
+  const tn = station(580, "layer N", { eyes: "happy", tone: MUST, verb: "cooked", tech: "last layer" });
+  tn.slice(0, 6).forEach((tl, i) => i % 2 === 0 && path(`M${tl.cx},548 c-5,-8 5,-12 0,-20`, "none", { sw: 1.3 }));
+  const q = tn[6];
+  path(`M${q.cx},522 l3,9 9,3 -9,3 -3,9 -3,-9 -9,-3 9,-3 Z`, MUST, { sw: 1.3 });
+
 
   // the many layers in between
-  text(792, 590, "· · ·", { size: 30, anchor: "middle", weight: 700 });
+  text(792, 580, "· · ·", { size: 30, anchor: "middle", weight: 700 });
   step(792, 482, 4, "cook", null, TERRA);
   arrowQ(1288, 446, 1180, 400, 1072, 444);
   arrowQ(948, 446, 792, 384, 646, 444);
