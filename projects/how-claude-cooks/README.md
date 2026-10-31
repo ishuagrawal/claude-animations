@@ -1,7 +1,7 @@
 # How Claude cooks
 
-A living infographic: one hand-inked kitchen-line poster that shows how an LLM writes a reply. The prompt is
-chopped into tokens, run through the layers, scored, and sampled, one token per lap, until the bell rings.
+A living infographic: one hand-inked kitchen-line poster that animates how an LLM writes a reply. Your order is
+chopped into tokens, cooked through the layers, scored and spun, and plated one token per lap until the bell rings.
 
 ## Model
 
@@ -19,6 +19,13 @@ npm install
 npm run serve
 ```
 
-Then open http://localhost:4106/projects/how-claude-cooks/ (port 4106).
+Open http://localhost:4106/projects/how-claude-cooks/ (port 4106). It plays once and ends on the finished poster;
+`?static` shows the poster, `?t=17.5` freezes on one moment.
 
-To save a PNG still (uses the preinstalled Playwright + Chromium), run `npm run still`; it writes `stills/poster.png`.
+To render an MP4 preview (needs `ffmpeg` and the preinstalled Playwright + Chromium):
+
+```bash
+npm run record
+```
+
+Writes `out/how-claude-cooks.mp4`. `npm run still -- 17.5` saves `stills/t-17.5.png`.

@@ -1,33 +1,17 @@
-// Serves the project and saves a PNG of the poster: node tools/still.mjs [out.png] [width] [height]
-import http from "node:http";
-import { readFile, mkdir } from "node:fs/promises";
-import { extname, join, normalize, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+// Saves PNG stills: node tools/still.mjs [t ...]   (no times = the finished poster)
+// Writes stills/poster.png, or stills/t-<time>.png for each time given.
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { openPage, root } from "./page.mjs";
 
-// Playwright comes preinstalled with the environment rather than from package.json.
-const { chromium } = createRequire(import.meta.url)("playwright");
-
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const [out = join(root, "stills/poster.png"), w = "1600", h = "1240"] = process.argv.slice(2);
-const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2" };
-
-const server = http.createServer(async (req, res) => {
-  const p = normalize(join(root, decodeURIComponent(req.url.split("?")[0]) === "/" ? "index.html" : req.url.split("?")[0]));
-  try { res.writeHead(200, { "content-type": types[extname(p)] || "application/octet-stream" }); res.end(await readFile(p)); }
-  catch { res.writeHead(404); res.end(); }
-}).listen(0);
-
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: +w, height: +h }, deviceScaleFactor: 1 });
-page.on("pageerror", (e) => console.error(e));
-await page.goto(`http://localhost:${server.address().port}/`);
-await page.waitForSelector("body[data-ready]");
-const fonts = await page.evaluate(() => [...document.fonts].filter((f) => f.status !== "loaded").map((f) => `${f.family} ${f.style} ${f.weight}`));
-if (fonts.length) console.warn("fonts not loaded:", fonts.join(", "));
-await page.waitForTimeout(300);
-await mkdir(dirname(out), { recursive: true });
-await page.screenshot({ path: out });
-await browser.close();
-server.close();
-console.log(out);
+const times = process.argv.slice(2);
+await mkdir(join(root, "stills"), { recursive: true });
+const { page, close } = await openPage("static");
+for (const t of times.length ? times : [null]) {
+  if (t != null) await page.evaluate((t) => { window.__seek(t); document.getElementById("again").hidden = true; }, +t);
+  await page.waitForTimeout(100);
+  const out = join(root, "stills", t == null ? "poster.png" : `t-${t}.png`);
+  await page.screenshot({ path: out });
+  console.log(out);
+}
+await close();

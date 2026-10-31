@@ -11,3 +11,12 @@ html, body { margin: 0; height: 100%; background: #f3ecdf; }
 #stage { width: 100vw; height: 100vh; display: grid; place-items: center; }
 #stage svg { width: 100%; height: 100%; display: block; }
 svg text { font-family: "Courier Prime", "Courier New", monospace; }
+
+#again {
+  position: fixed; right: 24px; bottom: 20px; padding: 8px 16px;
+  font: 700 16px "Courier Prime", monospace; color: #2b2622; background: #fbf6ea;
+  border: 2px solid #2b2622; border-radius: 3px; box-shadow: 4px 4px 0 #2b2622; cursor: pointer;
+}
+#again:hover { background: #e3b64c; }
+#again:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #2b2622; }
+#again[hidden] { display: none; }
