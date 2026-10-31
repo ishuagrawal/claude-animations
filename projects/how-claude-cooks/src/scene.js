@@ -114,42 +114,58 @@ function ticket(cx, cy, str, pin, o = {}) {
 
 // ---------- Claude, the chef ----------
 // Body units follow refs/claude-mascot.png: a 150 x 107 block, stub arms, four legs.
-function claude(x, y, s = 1, o = {}) {
-  const { eyes = "open", hat = true, apron = true, legs = true } = o;
-  put(`<g transform="translate(${x} ${y}) scale(${s})">`);
-  if (legs) for (const lx of [2, 38, 94, 130]) rect(lx, 100, 18, 42, TERRA);
-  rect(-36, 36, 38, 34, TERRA);
-  rect(148, 36, 38, 34, TERRA);
-  rect(0, 0, 150, 107, TERRA);
-  hrect(104, 2, 44, 103);
-  hrect(150, 52, 34, 17);
-  if (apron) {
-    path("M44,44 H106 V107 H44 Z", WHITE);
-    path("M44,62 C25,60 12,56 4,50 M106,62 C125,60 138,56 146,50", "none", { sw: 1.6 });
-    path("M58,74 H92 V92 H58 Z", "none", { sw: 1.4 });
-  }
-  if (eyes === "happy") {
-    path("M20,36 L28,24 L36,36 M112,36 L120,24 L128,36", "none", { sw: 3.4 });
-  } else if (eyes === "squint") {
-    inkPath("M19,28 H37 V34 H19 Z M111,28 H129 V34 H111 Z");
-  } else if (eyes === "wide") {
+// Every part the animation moves is its own group: <id>-body (breathes, hops), -eyes (looks
+// around) with one group per expression, -armL/-armR (hold props, drawn in page coordinates),
+// -hat, -legA/-legB, and the reaction marks -bang / -sweat / -note.
+const EXPRESSIONS = ["open", "squint", "wide", "happy", "blink"];
+function eyesOf(e) {
+  if (e === "happy") path("M20,36 L28,24 L36,36 M112,36 L120,24 L128,36", "none", { sw: 3.4 });
+  else if (e === "squint") inkPath("M19,28 H37 V34 H19 Z M111,28 H129 V34 H111 Z");
+  else if (e === "blink") inkPath("M18,30 H38 V33 H18 Z M110,30 H130 V33 H110 Z");
+  else if (e === "wide") {
     inkPath("M18,16 H38 V40 H18 Z M110,16 H130 V40 H110 Z");
     circ(23, 21, 3, WHITE, { stroke: "none" });
     circ(115, 21, 3, WHITE, { stroke: "none" });
-  } else {
-    inkPath("M20,20 H36 V38 H20 Z M112,20 H128 V38 H112 Z");
-  }
-  circ(18, 50, 7, PINK, { stroke: "none" });
-  circ(132, 50, 7, PINK, { stroke: "none" });
-  if (hat) {
-    circ(46, -40, 21, WHITE);
-    circ(104, -40, 21, WHITE);
-    circ(75, -52, 26, WHITE);
-    hcirc(110, -38, 12, "hatchLight");
-    rect(36, -30, 78, 30, WHITE);
-    path("M50,-28 V-2 M66,-28 V-2 M84,-28 V-2 M100,-28 V-2", "none", { sw: 1.1 });
-  }
-  put(`</g>`);
+  } else inkPath("M20,20 H36 V38 H20 Z M112,20 H128 V38 H112 Z");
+}
+function claude(id, x, y, s = 1, o = {}) {
+  const { eyes = "open", hat = true, apron = true, legs = true } = o;
+  const inPage = (fn) => { put(`<g transform="scale(${1 / s}) translate(${-x} ${-y})">`); fn(); put(`</g>`); };
+  const hidden = { attrs: 'opacity="0"' };
+  G(id, () => {
+    put(`<g transform="translate(${x} ${y}) scale(${s})">`);
+    G(`${id}-body`, () => {
+      if (legs) {
+        G(`${id}-legA`, () => { rect(2, 100, 18, 42, TERRA); rect(94, 100, 18, 42, TERRA); }, { ox: 57, oy: 100 });
+        G(`${id}-legB`, () => { rect(38, 100, 18, 42, TERRA); rect(130, 100, 18, 42, TERRA); }, { ox: 93, oy: 100 });
+      }
+      G(`${id}-armL`, () => { rect(-36, 36, 38, 34, TERRA); if (o.propL) inPage(o.propL); }, { ox: 2, oy: 53 });
+      G(`${id}-armR`, () => { rect(148, 36, 38, 34, TERRA); hrect(150, 52, 34, 17); if (o.propR) inPage(o.propR); }, { ox: 148, oy: 53 });
+      rect(0, 0, 150, 107, TERRA);
+      hrect(104, 2, 44, 103);
+      if (apron) {
+        path("M44,44 H106 V107 H44 Z", WHITE);
+        path("M44,62 C25,60 12,56 4,50 M106,62 C125,60 138,56 146,50", "none", { sw: 1.6 });
+        path("M58,74 H92 V92 H58 Z", "none", { sw: 1.4 });
+      }
+      G(`${id}-eyes`, () => EXPRESSIONS.forEach((e) =>
+        G(`${id}-e-${e}`, () => eyesOf(e), e === eyes ? {} : hidden)), { ox: 75, oy: 28 });
+      circ(18, 50, 7, PINK, { stroke: "none" });
+      circ(132, 50, 7, PINK, { stroke: "none" });
+      if (hat) G(`${id}-hat`, () => {
+        circ(46, -40, 21, WHITE);
+        circ(104, -40, 21, WHITE);
+        circ(75, -52, 26, WHITE);
+        hcirc(110, -38, 12, "hatchLight");
+        rect(36, -30, 78, 30, WHITE);
+        path("M50,-28 V-2 M66,-28 V-2 M84,-28 V-2 M100,-28 V-2", "none", { sw: 1.1 });
+      }, { ox: 75, oy: 0 });
+      G(`${id}-sweat`, () => path("M168,-6 c-8,12 -10,18 -4,22 c6,4 12,-2 4,-22 Z", BLUE, { sw: 2 }), hidden);
+      G(`${id}-bang`, () => text(176, 18, "!", { size: 64, weight: 700, color: RED }), { ...hidden, ox: 180, oy: 0 });
+      G(`${id}-note`, () => text(-70, -30, "♪", { size: 56, color: INK }), hidden);
+    }, { ox: 75, oy: 142 });
+    put(`</g>`);
+  });
 }
 
 // ---------- ingredient tiles (tokens) ----------
@@ -241,6 +257,11 @@ function header() {
   G("hdr-kicker", () => text(64, 78, "the kitchen of claude  ·  I", { size: 20, ls: 2 }));
   G("hdr-title1", () => text(58, 168, "How Claude", { size: 80, weight: 700 }));
   G("hdr-title2", () => text(58, 252, "cooks", { size: 80, weight: 700 }));
+  G("hdr-hero", () => claude("hero", 440, 214, 0.5, { eyes: "open", propR: () => {
+    path("M528,246 L556,186", "none", { stroke: WOOD, sw: 5 });
+    path("M528,246 L556,186", "none", { sw: 1.2 });
+    path("M550,190 c-6,-14 6,-26 14,-18 c8,8 -2,22 -14,18 Z", WOOD, { sw: 1.6 });
+  } }));
   G("hdr-sub", () => {
     text(64, 300, "how an AI writes a reply,", { size: 23, italic: true });
     text(64, 330, "one token at a time", { size: 23, italic: true });
@@ -258,6 +279,7 @@ function rowPrep() {
   G("s1-rail", () => {
     rect(648, 86, 196, 10, STEEL, { rx: 3 });
     hrect(648, 91, 196, 5, "hatchDense");
+    path("M656,86 V70 M836,86 V70", "none", { sw: 2 });
   });
   G("s1-slip", () => G("s1-slip-paper", () => {
     let slip = "M670,94 L822,92 L824,236";
@@ -277,19 +299,23 @@ function rowPrep() {
     rect(914, 205, 276, 28, WOOD, { rx: 4 });
     hrect(914, 222, 276, 11, "hatchDense");
   });
-  G("s2-claude", () => claude(1006, 118, 0.6, { eyes: "squint" }));
-  G("s2-tiles", () => tiles(921, 181, PROMPT, { size: 14, gap: 5, ids: "s2-t" }));
-  G("s2-cleaver", () => {
+  G("s2-claude", () => claude("c2", 1006, 118, 0.6, { eyes: "squint", propR: () => {
     path("M1110,152 L1146,112 L1170,132 L1134,170 Z", STEEL, { sw: 1.8 });
     hpath("M1150,118 L1170,132 L1150,154 Z", "hatch");
     path("M1104,160 L1114,150 L1124,160 L1114,170 Z", WOOD, { sw: 1.6 });
-  }, { ox: 1114, oy: 160 });
+  } }));
+  G("s2-tiles", () => tiles(921, 181, PROMPT, { size: 14, gap: 5, ids: "s2-t" }));
   G("s2-lines", () => path("M1180,108 l12,-10 M1186,128 l16,-2 M1166,96 l4,-14", "none", { sw: 1.6 }));
   G("s2-ticket", () => step(1052, 300, 2, "chop", "into tokens", MUST));
 
   G("arr-23", () => arrow("M1158,300 H1271", 1276, 300, 0));
 
   // 3 flavor: each jar tips in, and each token gets its own flavor profile
+  G("s3-shelf", () => {
+    rect(1258, 134, 280, 9, WOOD, { rx: 2 });
+    hrect(1258, 139, 280, 4, "hatchDense");
+    path("M1276,143 l10,14 M1520,143 l-10,14", "none", { sw: 2 });
+  });
   const profiles = [[0.9, 0.3, 0.6, 0.2], [0.4, 0.8, 0.2, 0.7], [0.2, 0.5, 0.9, 0.4], [0.7, 0.2, 0.4, 0.9]];
   [[1292, TERRA], [1362, SAGE], [1432, MUST], [1502, BLUE]].forEach(([x, c], k) =>
     G(`s3-jar-${k}`, () => jar(x, 70, c), { ox: x, oy: 134 }));
@@ -308,7 +334,7 @@ function rowPrep() {
 
   // into the line, the whole prompt at once
   G("arr-3L", () => arrow("M1488,300 H1578 V586 H1514", 1508, 586, 180));
-  G("s3-note", () => note(1568, 450, "all at once", { anchor: "end" }));
+  G("s3-note", () => note(1568, 374, "all at once", { anchor: "end" }));
 }
 
 // A burner flame, drawn as a teardrop.
@@ -317,25 +343,52 @@ function flame(x, y) {
   path(`M${x},${y - 1} c-2,-2 -2,-5 0,-7 c2,2 2,5 0,7 Z`, MUST, { stroke: "none" });
 }
 
+// A thought bubble: what a token has worked out so far (a tiny icon and a word or two).
+function thought(id, cx, word, icon, tailX) {
+  const w = 40 + word.length * 8.4 + 12, x = cx - w / 2;
+  G(id, () => {
+    path(`M${x + 10},478 H${x + w - 10} Q${x + w},478 ${x + w},488 V498 Q${x + w},508 ${x + w - 10},508 H${x + 10} Q${x},508 ${x},498 V488 Q${x},478 ${x + 10},478 Z`, WHITE, { sw: 1.6 });
+    circ((cx + tailX) / 2, 514, 3.6, WHITE, { sw: 1.4 });
+    circ(tailX, 522, 2.2, WHITE, { sw: 1.2 });
+    const ix = x + 20, iy = 493;
+    if (icon === "bowl") {
+      path(`M${ix - 10},${iy - 2} H${ix + 10} C${ix + 9},${iy + 8} ${ix - 9},${iy + 8} ${ix - 10},${iy - 2} Z`, TERRA, { sw: 1.4 });
+      path(`M${ix + 2},${iy - 3} L${ix + 12},${iy - 12} M${ix + 6},${iy - 3} L${ix + 14},${iy - 9}`, "none", { sw: 1.4 });
+    } else if (icon === "recipe") {
+      rect(ix - 8, iy - 10, 16, 20, CREAM, { sw: 1.4 });
+      path(`M${ix - 4},${iy - 4} H${ix + 4} M${ix - 4},${iy} H${ix + 4} M${ix - 4},${iy + 4} H${ix + 2}`, "none", { sw: 1.1 });
+    } else {
+      path(`M${ix - 10},${iy} H${ix + 8} M${ix + 3},${iy - 6} L${ix + 9},${iy} L${ix + 3},${iy + 6}`, "none", { stroke: RED, sw: 2.4 });
+    }
+    text(x + 36, 498, word, { size: 14, weight: 700, color: icon === "next" ? RED : INK });
+  }, { ox: tailX, oy: 522 });
+}
+
 // One station of the line: a sign, a burner with a sheet tray of tokens, the chef and the oven.
-// Every station runs the same two moves: "en" tastes back at the earlier tokens (hardest at
-// "ram", so it knows it's ramen) and never ahead; then every token gets its own pinch of seasoning.
+// Every station runs the same two moves on the same tray: the focus token tastes back at every
+// earlier token (thicker line = it matters more) but never ahead, then every token gets its own
+// pinch of seasoning. What changes from layer to layer is what the tokens have worked out (the
+// thought bubble) and how cooked they look.
 function station(id, c, name, o) {
   G(`${id}-sign`, () => {
-    path(`M${c - 34},404 V440 M${c + 34},404 V440`, "none", { sw: 1.4 });
+    path(`M${c - 34},398 V440 M${c + 34},398 V440`, "none", { sw: 1.4 });
     rect(c - 58, 440, 116, 32, WHITE, { rx: 2 });
     hrect(c + 52, 442, 4, 28, "hatchDense");
     text(c, 462, name, { size: 18, weight: 700, anchor: "middle" });
-  }, { ox: c, oy: 456 });
+  }, { ox: c, oy: 398 });
   G(`${id}-oven`, () => {
     for (let k = 0; k < 5; k++) circ(c - 140 + k * 45, 622, 4.5, WHITE, { sw: 1.3 });
     rect(c - 160, 632, 230, 54, WHITE, { rx: 3, sw: 1.6 });
     path(`M${c - 130},639 H${c + 40}`, "none", { sw: 3 });
     rect(c - 146, 646, 202, 36, SLATE, { rx: 2, sw: 1.2 });
+    G(`${id}-glow`, () => { put(`<g opacity="0.4">`); rect(c - 146, 646, 202, 36, MUST, { rx: 2, stroke: "none" }); put(`</g>`); });
     path(`M${c - 120},676 l6,-10 6,10 M${c - 60},676 l6,-10 6,10 M${c},676 l6,-10 6,10`, "none", { stroke: MUST, sw: 1.6 });
     hrect(c + 30, 648, 24, 32, "hatchLight");
   });
-  G(`${id}-claude`, () => claude(c + 62, 538, 0.5, { eyes: o.eyes, legs: false }));
+  G(`${id}-claude`, () => claude(`${id}-c`, c + 62, 538, 0.5, { eyes: o.eyes, legs: false, propL: () => {
+    path(`M${c + 40},520 L${c + 54},506 L${c + 70},522 L${c + 56},536 Z`, WHITE, { sw: 1.6 });
+    path(`M${c + 41},519 L${c + 55},505`, "none", { sw: 4 });
+  } }));
   G(`${id}-flames`, () => {
     for (let x = c - 150; x <= c + 30; x += 30) flame(x, 596);
   }, { ox: c - 60, oy: 596 });
@@ -344,53 +397,84 @@ function station(id, c, name, o) {
     path(`M${c - 166},581 V596 M${c + 50},581 V596`, "none", { sw: 2 });
     rect(c - 172, 574, 228, 7, STEEL, { rx: 2, sw: 1.6 });
     hrect(c - 172, 577, 228, 4, "hatchDense");
-    const fills = PROMPT.map((_, i) => (i === 5 ? TERRA : o.tone));
+    const fills = PROMPT.map((_, i) => (i === o.focus ? TERRA : o.tone));
     t = tiles(c - 164, 555, PROMPT, { size: 11, gap: 3, fills, ids: `${id}-t` });
   });
-  const en = t[5];
-  [1, 1, 1.3, 2.2, 3.8].forEach((sw, k) => {
-    const a = t[k], peak = 546 - (en.cx - a.cx) * 0.18;
+  for (let k = 0; k < 3; k++)
+    G(`${id}-steam-${k}`, () => path(`M${c - 136 + k * 74},548 c-6,-8 6,-12 0,-20 c-6,-8 6,-12 0,-18`, "none", { sw: 1.3 }), { ox: c - 136 + k * 74, oy: 548 });
+  const f = t[o.focus];
+  o.arcs.forEach((sw, k) => {
+    const a = t[k], peak = 546 - (f.cx - a.cx) * 0.16;
     G(`${id}-arc-${k}`, () =>
-      path(`M${en.cx},553 Q${(en.cx + a.cx) / 2},${peak} ${a.cx},553`, "none",
+      path(`M${f.cx},553 Q${(f.cx + a.cx) / 2},${peak} ${a.cx},553`, "none",
         { stroke: RED, sw, dash: sw < 2 ? "3 4" : null, attrs: sw < 2 ? "" : 'pathLength="1" class="draw"' }));
   });
-  const rx = t[6].x - 1.5;
+  const rx = o.focus < 6 ? t[o.focus + 1].x - 1.5 : f.x + f.w + 6;
   G(`${id}-rope`, () => {
     rect(rx - 2, 530, 4, 26, MUST, { sw: 1.2 });
     circ(rx, 528, 4, MUST, { sw: 1.2 });
     path(`M${rx},535 Q${rx + 16},548 ${rx + 30},535`, "none", { stroke: RED, sw: 2.6 });
   }, { ox: rx, oy: 556 });
-  G(`${id}-shaker`, () => {
-    path(`M${c + 40},520 L${c + 54},506 L${c + 70},522 L${c + 56},536 Z`, WHITE, { sw: 1.6 });
-    path(`M${c + 41},519 L${c + 55},505`, "none", { sw: 4 });
-  }, { ox: c + 62, oy: 530 });
   G(`${id}-grains`, () => {
     for (const [dx, dy] of [[34, 542], [28, 548], [38, 552]]) circ(c + dx, dy, 1.5, INK, { stroke: "none" });
     t.forEach((tl) => [-4, 0, 4].forEach((dx, j) => circ(tl.cx + dx, 553 + (j % 2), 1.3, INK, { stroke: "none" })));
   });
+  thought(`${id}-think`, c - 40, o.think[0], o.think[1], f.cx);
   return t;
 }
 
+// The kitchen wall behind the line: subway tiles, a utensil rail, a clock, a pan and a ladle.
+function kitchenWall() {
+  G("k-wall", () => {
+    put(`<g opacity="0.22">`);
+    for (let y = 400, r = 0; y < 596; y += 24, r++) {
+      path(`M424,${y} H1518`, "none", { sw: 1 });
+      for (let x = 424 + (r % 2 ? 24 : 0); x < 1518; x += 48) path(`M${x},${y} V${Math.min(596, y + 24)}`, "none", { sw: 1 });
+    }
+    put(`</g>`);
+  });
+  G("k-rail", () => {
+    rect(420, 390, 1102, 7, STEEL, { rx: 3, sw: 1.6 });
+    path("M432,397 v10 M1510,397 v10", "none", { sw: 3 });
+  });
+  G("k-clock", () => {
+    path("M470,397 V406", "none", { sw: 1.4 });
+    circ(470, 428, 21, WHITE, { sw: 1.8 });
+    hcirc(478, 432, 14, "hatchLight");
+    for (let k = 0; k < 12; k++) {
+      const a = (k * Math.PI) / 6;
+      path(`M${470 + 16 * Math.cos(a)},${428 + 16 * Math.sin(a)} L${470 + 18.5 * Math.cos(a)},${428 + 18.5 * Math.sin(a)}`, "none", { sw: 1.2 });
+    }
+    G("k-clock-hr", () => path("M470,428 V418", "none", { sw: 2.6 }), { ox: 470, oy: 428 });
+    G("k-clock-min", () => path("M470,428 L482,428", "none", { sw: 1.8 }), { ox: 470, oy: 428 });
+    circ(470, 428, 2.2, INK, { stroke: "none" });
+  });
+  G("k-pan", () => {
+    path("M1458,397 V420", "none", { sw: 1.4 });
+    rect(1454, 418, 8, 18, WOOD, { rx: 3, sw: 1.4 });
+    circ(1458, 452, 17, SLATE, { sw: 1.8 });
+    circ(1458, 452, 12, "none", { sw: 1, stroke: CHALK });
+  }, { ox: 1458, oy: 397 });
+  G("k-ladle", () => {
+    path("M1500,397 V444", "none", { stroke: STEEL, sw: 4 });
+    path("M1500,397 V444", "none", { sw: 1 });
+    path("M1488,444 H1512 C1510,458 1490,458 1488,444 Z", STEEL, { sw: 1.6 });
+  }, { ox: 1500, oy: 397 });
+}
+
 function rowLine() {
+  kitchenWall();
   G("s4-counter", () => {
     rect(418, 596, 1104, 14, WOOD);
     hrect(418, 604, 1104, 6, "hatchDense");
     rect(428, 610, 1084, 82, CREAM);
   });
 
-  // the same recipe at every layer; the tokens just get more cooked
-  const t1 = station("st1", 1350, "layer 1", { eyes: "wide", tone: CREAM });
-  station("st2", 1010, "layer 2", { eyes: "squint", tone: "#f3dfae" });
-  const tn = station("stN", 580, "layer N", { eyes: "happy", tone: MUST });
-  G("stN-steam", () => tn.slice(0, 6).forEach((tl, i) => i % 2 === 0 && path(`M${tl.cx},548 c-5,-8 5,-12 0,-20`, "none", { sw: 1.3 })));
-  G("stN-spark", () => path(`M${tn[6].cx},516 l3,9 9,3 -9,3 -3,9 -3,-9 -9,-3 9,-3 Z`, MUST, { sw: 1.3 }), { ox: tn[6].cx, oy: 528 });
-
-  // "ram" + "en": the moment tasting back pays off (only shown while it plays)
-  const mid = (t1[4].cx + t1[5].cx) / 2;
-  G("st1-bubble", () => {
-    path(`M${mid - 46},486 H${mid + 46} V514 H${mid + 10} L${mid + 2},526 L${mid - 4},514 H${mid - 46} Z`, WHITE, { sw: 1.6 });
-    text(mid, 506, "ramen!", { size: 16, weight: 700, anchor: "middle", color: RED });
-  }, { ox: mid, oy: 524 });
+  // the same recipe at every layer; what the tokens understand grows
+  station("st1", 1350, "layer 1", { eyes: "wide", tone: CREAM, focus: 5, arcs: [1, 1, 1.3, 2.2, 3.8], think: ["ramen", "bowl"] });
+  station("st2", 1010, "layer 2", { eyes: "squint", tone: "#f3dfae", focus: 6, arcs: [1.3, 1, 1, 3.4, 2.4, 2.4], think: ["a recipe", "recipe"] });
+  const tn = station("stN", 580, "layer N", { eyes: "happy", tone: MUST, focus: 6, arcs: [2.2, 1.4, 1.4, 2.6, 2.8, 2.8], think: ["start…", "next"] });
+  G("stN-spark", () => path(`M${tn[6].cx + 10},532 l3,9 9,3 -9,3 -3,9 -3,-9 -9,-3 9,-3 Z`, MUST, { sw: 1.3 }), { ox: tn[6].cx + 10, oy: 544 });
 
   // the recipe card: what every layer does
   G("s4-card", () => {
@@ -469,10 +553,7 @@ function rowPass() {
 
   // 6 spin: the weighted wheel
   wheel(650, 968, 100);
-  G("s6-claude", () => {
-    claude(772, 1012, 0.5, { eyes: "wide" });
-    path("M748,1016 L762,1032", "none", { sw: 1.6 });
-  });
+  G("s6-claude", () => claude("c6", 772, 1012, 0.5, { eyes: "wide" }));
   G("s6-ticket", () => step(660, 790, 6, "spin", "pick one by its odds", BLUE));
 
   G("arr-67", () => arrow("M752,790 H893", 898, 790, 0));
@@ -481,6 +562,11 @@ function rowPass() {
   G("s7-bowl", () => bowl(990, 900, 170));
   G("s7-bowl-tiles", () => tiles(916, 878, ["start", "with", "a", "good"], { size: 12, gap: 3 }));
   G("s7-broth", () => tiles(962, 851, ["broth"], { size: 13, fills: [TERRA] }));
+  for (let k = 0; k < 2; k++)
+    G(`s7-steam-${k}`, () => path(`M${[900, 1080, 1066][k]},${[904, 904, 870][k]} c-7,-9 7,-14 0,-24 c-7,-9 7,-14 0,-20`, "none", { sw: 1.4 }), { ox: [900, 1080, 1066][k], oy: 900 });
+  G("s7-splash", () => {
+    for (const [x, y, r] of [[946, 872, 3], [936, 862, 2.4], [1034, 872, 3], [1044, 860, 2.2], [990, 866, 2]]) circ(x, y, r, BLUE, { sw: 1 });
+  }, { attrs: 'opacity="0"', ox: 990, oy: 880 });
   G("s7-lines", () => path("M952,855 l-10,-6 M952,867 l-12,0 M1024,855 l10,-6 M1024,867 l12,0", "none", { sw: 1.4 }));
   G("s7-screen", () => {
     rect(912, 1000, 160, 98, WHITE, { rx: 6 });
@@ -518,10 +604,11 @@ function rowPass() {
   G("arr-fetch", () => arrowQ(1082, 818, 1150, 1110, 1214, 1110));
   G("e-fetch", () => step(1300, 1110, 0, "fetch", "uses a tool", BLUE));
   G("e-runner", () => {
-    claude(1446, 1082, 0.42, { eyes: "wide" });
-    rect(1528, 1100, 40, 26, WOOD, { rx: 3, sw: 1.6 });
-    path("M1532,1100 Q1548,1080 1564,1100", "none", { sw: 1.6 });
-    path("M1410,1096 h-18 M1414,1112 h-26 M1410,1128 h-18", "none", { sw: 1.5 });
+    G("e-speed", () => path("M1410,1096 h-18 M1414,1112 h-26 M1410,1128 h-18", "none", { sw: 1.5 }));
+    claude("runner", 1446, 1082, 0.42, { eyes: "wide", propR: () => {
+      rect(1528, 1100, 40, 26, WOOD, { rx: 3, sw: 1.6 });
+      path("M1532,1100 Q1548,1080 1564,1100", "none", { sw: 1.6 });
+    } });
   });
 }
 

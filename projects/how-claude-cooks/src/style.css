@@ -12,11 +12,22 @@ html, body { margin: 0; height: 100%; background: #f3ecdf; }
 #stage svg { width: 100%; height: 100%; display: block; }
 svg text { font-family: "Courier Prime", "Courier New", monospace; }
 
-#again {
-  position: fixed; right: 24px; bottom: 20px; padding: 8px 16px;
+#again, #start .sound {
+  padding: 8px 16px;
   font: 700 16px "Courier Prime", monospace; color: #2b2622; background: #fbf6ea;
   border: 2px solid #2b2622; border-radius: 3px; box-shadow: 4px 4px 0 #2b2622; cursor: pointer;
 }
-#again:hover { background: #e3b64c; }
-#again:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #2b2622; }
+#again:hover, #start .sound:hover { background: #e3b64c; }
+#again:active, #start .sound:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #2b2622; }
 #again[hidden] { display: none; }
+#again { position: fixed; right: 24px; bottom: 20px; }
+#start {
+  position: fixed; inset: 0; display: grid; place-content: center; gap: 12px; justify-items: center;
+  background: rgba(243, 236, 223, 0.55);
+}
+#start[hidden] { display: none; }
+#start .sound { font-size: 22px; padding: 12px 24px; }
+#start .silent {
+  font: italic 15px "Courier Prime", monospace; color: #2b2622; background: none; border: 0;
+  text-decoration: underline; cursor: pointer;
+}

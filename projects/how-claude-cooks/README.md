@@ -19,8 +19,8 @@ npm install
 npm run serve
 ```
 
-Open http://localhost:4106/projects/how-claude-cooks/ (port 4106). It plays once and ends on the finished poster;
-`?static` shows the poster, `?t=17.5` freezes on one moment.
+Open http://localhost:4106/projects/how-claude-cooks/ (port 4106) and click "start cooking" (sound is synthesized in
+the browser). It plays once and ends on the finished poster; `?static` shows the poster, `?t=17.5` freezes on one moment.
 
 To render an MP4 preview (needs `ffmpeg` and the preinstalled Playwright + Chromium):
 
@@ -28,4 +28,4 @@ To render an MP4 preview (needs `ffmpeg` and the preinstalled Playwright + Chrom
 npm run record
 ```
 
-Writes `out/how-claude-cooks.mp4`. `npm run still -- 17.5` saves `stills/t-17.5.png`.
+Writes `out/how-claude-cooks.mp4` with the soundtrack. `npm run still -- 17.5` saves `stills/t-17.5.png`.
