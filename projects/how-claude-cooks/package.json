@@ -1,0 +1,13 @@
+{
+  "name": "how-claude-cooks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "npx serve -l 4106 ../..",
+    "still": "node tools/still.mjs",
+    "record": "node tools/record.mjs"
+  },
+  "dependencies": {
+    "@fontsource/courier-prime": "5.2.8"
+  }
+}
