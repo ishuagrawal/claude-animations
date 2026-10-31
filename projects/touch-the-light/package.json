@@ -1,9 +1,0 @@
-{
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "audio": "node render/render.mjs --audio-only",
-    "render": "node render/render.mjs --reuse-audio",
-    "serve": "npx serve -l 4105 ../.."
-  }
-}
