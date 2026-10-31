@@ -27,6 +27,7 @@ __pycache__/
 *.zip
 *.tar*
 projects/**/*.png
+!projects/*/preview.png
 projects/**/*.jpg
 projects/**/*.jpeg
 projects/**/*.webp

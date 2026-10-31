@@ -26,9 +26,10 @@ Monorepo of JS animation projects featuring Claude the mascot.
   media (renders, audio, images, archives), intermediate/build output (`out/`, stills, caches,
   temp files, `node_modules`), or context/session files (`HANDOFF.md`, notes, `.claude/`).
   `.gitignore` enforces most of this; still run `git status` and review staged files before every
-  commit. Mascot/reference images belong in `refs/` only.
+  commit. Mascot/reference images belong in `refs/` only. The one exception: a single small
+  `projects/<name>/preview.png` (one frame of the finished piece, ideally under ~500 KB) for the README.
 - Each project's `README.md` contains only:
-  1. The project name (title).
+  1. The project name (title), optionally followed by its `preview.png` frame.
   2. A 1–2 line premise of what the video is about.
   3. The model used (e.g. `claude-opus-5-5`), optionally the reasoning effort and the equivalent
      API cost (sum the session transcripts' token usage × current API pricing).
