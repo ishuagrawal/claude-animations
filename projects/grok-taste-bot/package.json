@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prep": "node render/prep.mjs",
+    "render": "node render/render.mjs --no-audio",
+    "serve": "npx serve -l 4106 ."
+  }
+}

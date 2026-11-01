@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grok Bot — now has taste</title>
+<style>
+  html, body { margin: 0; background: #111; height: 100%; }
+  body { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; font: 13px system-ui; color: #aaa; }
+  canvas { width: min(100vw, 177.78vh - 40px); aspect-ratio: 16 / 9; background: #fff; }
+  body.render canvas { width: 1920px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div id="hud">space = play/pause · ←/→ = step · click = scrub</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
