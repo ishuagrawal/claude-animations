@@ -68,7 +68,7 @@ export default function () {
     let n = 0;
     if (t > C.release - 0.02) for (let i = 0; i < 460; i++) {
       const h0 = hash2(i, 81), h1 = hash2(i, 82), h2 = hash2(i, 83), h3 = hash2(i, 84);
-      const tau = t - (C.release + h0 * h0 * 2.6); if (tau <= 0) continue;
+      const tau = t - (C.release + h0 * h0 * 4.3); if (tau <= 0) continue;
       const y = DY + 9 + 9 * tau + 7.5 * tau * tau; if (y > 150) continue;
       const r = (2.5 + (10 + h1 * 13) * (1 - Math.exp(-tau * 1.7))) * (1 - 0.72 * smooth(45, 120, y));
       const th = h1 * TAU + (1.3 + h2 * 1.2) * tau * (i % 5 ? 1 : -1);

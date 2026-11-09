@@ -30,7 +30,7 @@ export default function () {
       const k = seg(t, 0, C.screen, ease.inOutSine);
       setCam(cam, [lerp(17.5, 15.2, k), lerp(14.2, 13.0, k), lerp(31, 26.5, k)], [lerp(-0.5, 0.6, k), lerp(8.6, 8.8, k), 0], 32);
       return { scene: R.scene, camera: cam, post: { ...POST, focus: 27, range: 26, flat: 7, fade: 1 - seg(t, C.fadeIn + 0.1, C.room + 1.4, ease.inOutSine), bloom: 0.8 },
-        overlay: ctx => title(ctx, 'THE SPARK', seg(t, C.titleIn, C.titleIn + 1.2, ease.inOutSine) * (1 - seg(t, C.titleOut, C.titleOut + 0.9, ease.inOutSine)), { y: 318, track: 26, size: 46 }) };
+        overlay: ctx => title(ctx, 'THE SPARK', seg(t, C.titleIn, C.titleIn + 1.2, ease.inOutSine) * (1 - seg(t, C.titleOut, C.titleOut + 0.9, ease.inOutSine)), { y: 232, track: 26, size: 46 }) };
     } },
     { name: 'screen', start: C.screen, end: C.follow, draw(t) {
       dusk(); hideSpark(t); noMotes();
@@ -76,7 +76,7 @@ export default function () {
     { name: 'reply', start: C.reply, end: C.home, draw(t) {
       night();
       const k = seg(t, C.reply, C.home, ease.inOutSine), c2 = seg(t, C.cursor - 0.3, C.home, ease.inOutSine);
-      setCam(cam, [lerp(5.6, 6.3, k) + c2 * 1.1, lerp(11.8, 11.5, k) - c2 * 0.5, lerp(8.9, 8.1, k) - c2 * 2.0], [lerp(7.3, 7.5, k) + c2 * 0.9, lerp(11.2, 11.05, k) - c2 * 0.5, 1.9], 34);
+      setCam(cam, [lerp(5.6, 6.3, k) + c2 * 0.5, lerp(11.8, 11.5, k) - c2 * 0.3, lerp(8.9, 8.1, k) - c2 * 0.9], [lerp(7.3, 7.5, k) + c2 * 0.3, lerp(11.2, 11.05, k) - c2 * 0.3, 1.9], 34);
       R.set(t, { night: 1, tower: 0.6 + 0.1 * Math.sin(t * 2), screenGain: 0.88, screenLight: 1.5 });
       const lines = POEM.map((_, i) => clamp((t - C.line[i]) / 1.05));
       R.screen.draw({ t, typed: PROMPT.length, sent: 1, think: 1 - seg(t, C.line[0] - 0.3, C.line[0] + 0.2), lines });
@@ -107,7 +107,7 @@ export default function () {
       night(); noMotes();
       const k = seg(t, C.home, C.end, ease.inOutSine), lean = seg(t, C.home + 0.5, C.home + 2.4, ease.inOut);
       setCam(cam, [lerp(13.2, 16.5, k), lerp(12.6, 14.6, k), lerp(22, 30, k)], [lerp(2.6, 0.2, k), lerp(9.2, 8.6, k), 0], 32);
-      R.set(t, { night: 1, tower: 0.75 + 0.2 * Math.sin((t - C.home) * 2.2), screenGain: 0.95, screenLight: 2.5, lean: 0.13 * lean, headTilt: 0.14 * lean, headNod: -0.1 * lean });
+      R.set(t, { night: 1, tower: 0.75 + 0.2 * Math.sin((t - C.home) * 2.2), screenGain: 0.95, screenLight: 4.2, lean: 0.13 * lean, headTilt: 0.14 * lean, headNod: -0.1 * lean });
       R.screen.draw({ t, typed: PROMPT.length, sent: 1, think: 0, lines: [1, 1, 1, 1] });
       const cp = scrPt(COL_X + (R.screen.poemW[3] || 720) + 46, POEM_Y + 3 * POEM_LH - 4, 0.22);
       spark.update(t, cam, { pos: V3(cp.x, cp.y + Math.sin(t * 2.4) * 0.012, cp.z), size: 0.15, look: [0.3, 0], open: 1, happy: 0.4, light: 0.6, lightDist: 6, orbit: 0.3 });

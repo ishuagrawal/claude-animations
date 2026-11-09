@@ -28,7 +28,7 @@ export function buildRoom() {
   sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 26, bottom: -22, near: 5, far: 120 });
   const hemi = new THREE.HemisphereLight(0x4f8fb0, 0x0b1a22, 0.5);
-  const screenLight = new THREE.PointLight(0xffe2b8, 0, 34, 1.5); screenLight.position.set(MON.x, MON.y, MON.z + 2.2);
+  const screenLight = new THREE.PointLight(0xffd29a, 0, 40, 1.4); screenLight.position.set(MON.x, MON.y, MON.z + 2.2);
   const towerLight = new THREE.PointLight(0x62dcff, 0, 16, 1.6); towerLight.position.set(-6.5, 3, 4.6);
   scene.add(sun, sun.target, hemi, screenLight, towerLight);
 
