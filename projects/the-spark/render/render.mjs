@@ -8,6 +8,7 @@
 //   node render/render.mjs --audio-only            -> out/<name>.wav
 //   node render/render.mjs --reuse-audio           -> full film reusing out/<name>.wav (render audio first)
 // Options: --name <n> --root <dir to serve> --fps 24 --crf 15 --chrome <path> --no-audio
+//          --query only=chip (page query) --tag x (stills go to out/stills-x) --time 3,9 (ms per frame) --out seg1.mp4
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile, mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -219,7 +220,7 @@ async function main() {
     const start = from !== null ? +from : 0;
     const end = to !== null ? +to : info.duration;
     const n = Math.round((end - start) * FPS);
-    const outFile = path.join(outDir, from !== null ? 'preview.mp4' : `${NAME}.mp4`);
+    const outFile = path.join(outDir, opt('out', null) ? String(opt('out')) : from !== null ? 'preview.mp4' : `${NAME}.mp4`);
     const ff = spawn('ffmpeg', [
       '-y', '-loglevel', 'error', '-f', 'image2pipe', '-c:v', 'png', '-framerate', String(FPS), '-i', '-',
       ...(noAudio ? [] : ['-ss', String(start), '-t', String(end - start), '-i', wavPath]),

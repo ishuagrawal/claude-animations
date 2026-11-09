@@ -55,11 +55,11 @@ const COPY = 'precision highp float; uniform sampler2D tC; varying vec2 vUv; voi
 
 const FINAL = `precision highp float;
 uniform sampler2D tC, tB0, tB1, tB2, tB3, uStroke; uniform vec2 uRes;
-uniform float uBloom, uExposure, uContrast, uSat, uVig, uGrain, uSeed, uFade, uFlash, uCanvas, uAspect, uGlowWarm;
-uniform vec3 uLift, uGain, uFadeCol;
+uniform float uBloom, uExposure, uContrast, uSat, uVig, uGrain, uSeed, uFade, uFlash, uCanvas, uAspect, uGlowWarm, uMatte, uSatKnee;
+uniform vec3 uLift, uGain, uFadeCol, uMatteCol;
 varying vec2 vUv;
 float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + uSeed) * 43758.5453); }
-vec3 shoulder(vec3 x) { vec3 a = vec3(0.72); return mix(x, a + (1.0 - a) * (1.0 - exp(-(x - a) / (1.0 - a))), step(a, x)); }
+vec3 shoulder(vec3 x) { vec3 a = vec3(0.56); float cap = 0.93; return mix(x, a + (cap - a) * (1.0 - exp(-(x - a) / (cap - a))), step(a, x)); }
 void main() {
   vec3 c = texture2D(tC, vUv).rgb;
   vec3 b = texture2D(tB0, vUv).rgb * 0.34 + texture2D(tB1, vUv).rgb * 0.3 + texture2D(tB2, vUv).rgb * 0.22 + texture2D(tB3, vUv).rgb * 0.2;
@@ -72,11 +72,16 @@ void main() {
   c = c * uGain + uLift * (1.0 - clamp(c, 0.0, 1.0)) * (1.0 - clamp(c, 0.0, 1.0));
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(vec3(l), c, uSat);
+  // rein in neon: compress chroma above a knee (the reference's darks stay rich but never electric)
+  float mxc = max(c.r, max(c.g, c.b)), mnc = min(c.r, min(c.g, c.b)), sat = (mxc - mnc) / max(mxc, 1e-4);
+  float sat2 = sat < uSatKnee ? sat : uSatKnee + (sat - uSatKnee) * 0.45;
+  c = mix(vec3(mxc), c, sat2 / max(sat, 1e-4));
   c = (c - 0.18) * uContrast + 0.18;
   c = shoulder(max(c, 0.0));
   vec2 q = vUv - 0.5; q.x *= uAspect * 0.62;
   c *= 1.0 - uVig * smoothstep(0.18, 0.95, dot(q, q) * 2.2);
   c = pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2));
+  c = c * (1.0 - uMatte) + uMatte * uMatteCol;        // matte floor: blacks are lifted and tinted, like paint
   // canvas tooth + brush variation, then grain
   vec3 st = texture2D(uStroke, vUv * vec2(uAspect, 1.0) * 2.2).rgb;
   c *= 1.0 + ((st.b - 0.5) * 0.5 + (st.r - 0.5) * 0.5) * uCanvas;
@@ -87,9 +92,9 @@ void main() {
 }`;
 
 export const POST_DEFAULT = {
-  focus: 10, range: 14, flat: 2, rNear: 2.2, rFar: 7.5, mean: 0.45, wobble: 5, haze: 0, hazeCol: [0.8, 0.6, 0.45],
-  bloom: 0.9, thr: 0.95, exposure: 1, contrast: 1.06, sat: 1.08, vig: 0.42, grain: 0.028, canvas: 0.1, glowWarm: 0.6,
-  lift: [0.012, 0.03, 0.04], gain: [1.0, 1.0, 1.0], fade: 0, fadeCol: [0, 0, 0], flash: 0, seed: 0,
+  focus: 10, range: 14, flat: 2, rNear: 2.2, rFar: 8.5, mean: 0.45, wobble: 6, haze: 0, hazeCol: [0.8, 0.6, 0.45],
+  bloom: 0.9, thr: 0.95, exposure: 1, contrast: 1.06, sat: 1.3, vig: 0.42, grain: 0.028, canvas: 0.13, glowWarm: 0.6,
+  lift: [0.012, 0.03, 0.04], gain: [1.0, 1.0, 1.0], matte: 0.058, matteCol: [0.55, 0.78, 1.0], satKnee: 0.74, fade: 0, fadeCol: [0, 0, 0], flash: 0, seed: 0,
 };
 
 export class Pipeline {
@@ -106,7 +111,7 @@ export class Pipeline {
     this.mCopy = mat(COPY, { tC: { value: null } });
     this.mFinal = mat(FINAL, { tC: { value: null }, tB0: { value: null }, tB1: { value: null }, tB2: { value: null }, tB3: { value: null }, uStroke: LOOK.uStroke, uRes: { value: new THREE.Vector2() },
       uBloom: { value: 1 }, uExposure: { value: 1 }, uContrast: { value: 1 }, uSat: { value: 1 }, uVig: { value: 0.4 }, uGrain: { value: 0.03 }, uSeed: { value: 0 }, uFade: { value: 0 }, uFlash: { value: 0 },
-      uCanvas: { value: 0.1 }, uAspect: { value: W / H }, uGlowWarm: { value: 0.6 }, uLift: { value: new THREE.Color() }, uGain: { value: new THREE.Color() }, uFadeCol: { value: new THREE.Color() } });
+      uCanvas: { value: 0.1 }, uAspect: { value: W / H }, uGlowWarm: { value: 0.6 }, uLift: { value: new THREE.Color() }, uGain: { value: new THREE.Color() }, uFadeCol: { value: new THREE.Color() }, uMatte: { value: 0.07 }, uSatKnee: { value: 0.62 }, uMatteCol: { value: new THREE.Color() } });
     this.setScale(1);
   }
   setScale(s) {
@@ -162,6 +167,7 @@ export class Pipeline {
     f.tC.value = this.K.texture; f.tB0.value = this.b0.texture; f.tB1.value = this.b1.texture; f.tB2.value = this.b2.texture; f.tB3.value = this.b3.texture;
     f.uRes.value.set(this.w, this.h); f.uBloom.value = P.bloom; f.uExposure.value = P.exposure; f.uContrast.value = P.contrast; f.uSat.value = P.sat;
     f.uVig.value = P.vig; f.uGrain.value = P.grain; f.uSeed.value = P.seed; f.uFade.value = P.fade; f.uFlash.value = P.flash; f.uCanvas.value = P.canvas; f.uGlowWarm.value = P.glowWarm;
+    f.uMatte.value = P.matte; f.uSatKnee.value = P.satKnee; f.uMatteCol.value.setRGB(...P.matteCol);
     f.uLift.value.setRGB(...P.lift); f.uGain.value.setRGB(...P.gain); f.uFadeCol.value.setRGB(...P.fadeCol);
     this.pass(this.mFinal, null);
   }

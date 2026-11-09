@@ -37,7 +37,7 @@ const VS_MAIN = `
 `;
 const FS_PARS = `
 uniform sampler2D uStroke; uniform vec3 uShadowTint; uniform vec4 uBand; uniform float uBreak, uPoster, uRimAmt, uWarm;
-uniform vec3 uRimCol; uniform float uStrokeScale, uStrokeAmt, uRimK, uShadeK, uWarmK, uBroken; uniform vec4 uReveal; uniform vec3 uRevealCol; uniform vec3 uCold;
+uniform vec3 uRimCol; uniform float uStrokeScale, uStrokeAmt, uRimK, uShadeK, uWarmK, uBroken, uRevK; uniform vec4 uReveal; uniform vec3 uRevealCol; uniform vec3 uCold;
 varying vec3 vPP; varying vec3 vPN; varying vec3 vWorldP;
 vec3 triStroke(vec3 p, vec3 n, float s) {
   vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z);
@@ -53,12 +53,15 @@ const FS_OUT = `
   #endif
   vec3 pst = triStroke(vPP, normalize(vPN), uStrokeScale);
   float sn = pst.r - 0.5, bl = pst.g - 0.5;
-  alb *= 1.0 + bl * vec3(0.42, 0.04, -0.42) * uBroken + sn * vec3(-0.12, 0.05, 0.16) * uBroken;   // broken colour: warm/cool patches
+  alb *= 1.0 + bl * vec3(1.0, 0.1, -1.0) * uBroken + sn * vec3(-0.3, 0.12, 0.38) * uBroken;   // broken colour: warm/cool patches
   #ifdef PAINT_DISSOLVE
-    float dR = distance(vWorldP, uReveal.xyz) + bl * uReveal.w * 0.9 + sn * uReveal.w * 0.35;
-    float dA = smoothstep(uReveal.w * 0.72, uReveal.w, dR);
-    if (dA < 0.5) discard;
-    totalEmissiveRadiance += uRevealCol * (1.0 - smoothstep(0.5, 1.0, dA)) * 2.5;
+    float rW = uReveal.w * uRevK;
+    if (rW > 0.0) {
+      float dR = distance(vWorldP, uReveal.xyz) + bl * rW * 0.9 + sn * rW * 0.35;
+      float dA = smoothstep(rW * 0.72, rW, dR);
+      if (dA < 0.5) discard;
+      totalEmissiveRadiance += uRevealCol * (1.0 - smoothstep(0.5, 1.0, dA)) * 2.5;
+    }
   #endif
   float pL = dot(pIrr, vec3(0.2126, 0.7152, 0.0722));
   vec3 hue = mix(vec3(1.0), pIrr / max(pL, 1e-3), smoothstep(0.0, 0.04, pL));
@@ -83,7 +86,7 @@ export function paint(color, o = {}) {
   });
   const u = m.userData.u = {
     uStrokeScale: { value: o.scale ?? 0.55 }, uStrokeAmt: { value: o.stroke ?? 0.3 }, uRimK: { value: o.rim ?? 1 },
-    uShadeK: { value: o.shade ?? 1 }, uBroken: { value: o.broken ?? 1 }, uObj: { value: o.objSpace ? 1 : 0 }, uWarmK: { value: o.warmK ?? 1 },
+    uShadeK: { value: o.shade ?? 1 }, uBroken: { value: o.broken ?? 1 }, uRevK: { value: o.revealK ?? 1 }, uObj: { value: o.objSpace ? 1 : 0 }, uWarmK: { value: o.warmK ?? 1 },
     uCold: { value: new THREE.Color(o.cold ?? 0x8fa6c4) },
   };
   const defs = (o.dissolve ? '#define PAINT_DISSOLVE\n' : '') + (o.warm ? '#define PAINT_WARM\n' : '');

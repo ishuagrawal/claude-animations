@@ -52,10 +52,12 @@ function pcbTexture() {
 }
 
 export function buildBoard() {
-  const scene = new THREE.Scene();
+  // the world is authored right-to-left and mirrored, so the journey reads left-to-right on screen
+  const root = new THREE.Scene();
+  const scene = new THREE.Group(); scene.scale.x = -1; root.add(scene);
   const R = rng(77);
-  scene.fog = new THREE.FogExp2(0xc98a5c, 0.0016);
-  scene.userData.clear = 0x2a1a12;
+  root.fog = new THREE.FogExp2(0xb07a5a, 0.0012);
+  root.userData.clear = 0x2a1a12;
   const cam = new THREE.PerspectiveCamera(30, 1920 / 804, 0.5, 600);
   // ---- light: low golden backlight through the vents, teal ambient
   const sun = new THREE.DirectionalLight(0xffc48a, 1.35); sun.position.set(60, 46, -90); sun.target.position.set(0, 0, 10);
@@ -66,7 +68,7 @@ export function buildBoard() {
 
   // ---- ground
   const tex = pcbTexture(); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(4.2, 3.4);
-  const ground = mesh(new THREE.PlaneGeometry(520, 420), paint(0xffffff, { map: tex, scale: 0.022, stroke: 0.4 }), { cast: false });
+  const ground = mesh(new THREE.PlaneGeometry(520, 420), paint(0xd8fff0, { map: tex, scale: 0.022, stroke: 0.4 }), { cast: false });
   ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0, -40); scene.add(ground);
 
   // ---- materials
@@ -91,7 +93,7 @@ export function buildBoard() {
     }
   };
   grove(-34, 30, 9, 24, 1.7, 2.6, 6, 10); grove(34, 34, 7, 20, 1.5, 2.4, 5, 9); grove(-58, -6, 10, 30, 2, 3, 7, 12);
-  grove(14, 6, 6, 16, 1.2, 1.8, 4, 6); grove(-12, -34, 8, 30, 1.6, 2.4, 6, 9); grove(60, -30, 9, 30, 1.8, 2.8, 6, 11);
+  grove(34, -6, 6, 14, 1.2, 1.8, 4, 6); grove(-34, -40, 8, 24, 1.6, 2.4, 6, 9); grove(60, -30, 9, 30, 1.8, 2.8, 6, 11);
   grove(-20, 52, 5, 14, 1.3, 2.0, 4, 7); grove(46, 58, 4, 12, 1.4, 2.2, 5, 8);
   scene.add(inst(cyl(1, 1, 1, 28), sleeve, caps));
   scene.add(inst(cyl(1, 1, 1, 28), alu, tops));
@@ -102,6 +104,7 @@ export function buildBoard() {
     const w = 4 + R() * 9, d = 4 + R() * 8, x = (R() - 0.5) * 190, z = (R() - 0.5) * 150 - 5;
     if (Math.abs(x + 2) < 30 && z < -30 && z > -100) continue;      // keep the socket clear
     if (x > 52 && x < 100 && z > -70 && z < 50) continue;            // RAM bank
+    if (w > 9 && Math.abs(x) < 26 && z > -20) continue;               // keep big packages off the run
     chips.push({ p: [x, 0.6, z], s: [w, 1.2, d] });
     const n = Math.floor(w / 1.1);
     for (let k = 0; k < n; k++) for (const s of [-1, 1]) pins.push({ p: [x - w / 2 + 0.6 + k * 1.1, 0.25, z + s * (d / 2 + 0.35)], s: [0.5, 0.3, 0.9] });
@@ -154,7 +157,7 @@ export function buildBoard() {
   // ---- VRM heatsinks flanking the socket, chipset block, GPU slab
   const sink = (x, z, w, d, h, n) => { const g = []; g.push(at(rbox(w, 2, d, 0.4, 2), x, 1, z)); for (let i = 0; i < n; i++) g.push(at(rbox(w, h, d / n * 0.55, 0.25, 2), x, 2 + h / 2, z - d / 2 + (i + 0.5) * d / n)); return merge(g); };
   scene.add(mesh(sink(-44, -64, 12, 48, 13, 10), alu)); scene.add(mesh(sink(-4, -104, 44, 12, 11, 3), alu));
-  scene.add(mesh(sink(22, 24, 22, 22, 5, 7), aluDark));
+  scene.add(mesh(sink(44, 10, 20, 20, 5, 7), aluDark));
   const gpu = mesh(rbox(190, 16, 12, 1.2, 3), graphite, { x: -30, y: 34, z: 64, cast: false }); gpu.visible = false; scene.add(gpu);
 
   // ---- far case wall with vent slits (the "sky") and shafts
@@ -167,9 +170,9 @@ export function buildBoard() {
       void main(){
         float y = vUv.y;
         // sunset through the rear grille: a hot band low, cooling to plum and slate above
-        vec3 col = mix(vec3(1.0, 0.46, 0.2), vec3(1.55, 1.05, 0.6), smoothstep(0.2, 0.33, y) * smoothstep(0.56, 0.36, y));
-        col = mix(col, vec3(0.5, 0.22, 0.3), smoothstep(0.42, 0.72, y));
-        col = mix(col, vec3(0.07, 0.1, 0.16), smoothstep(0.62, 0.95, y));
+        vec3 col = mix(vec3(0.95, 0.4, 0.16), vec3(1.25, 0.8, 0.42), smoothstep(0.2, 0.33, y) * smoothstep(0.52, 0.36, y));
+        col = mix(col, vec3(0.42, 0.2, 0.32), smoothstep(0.4, 0.62, y));
+        col = mix(col, vec3(0.05, 0.16, 0.22), smoothstep(0.52, 0.85, y));
         col *= smoothstep(0.1, 0.24, y);
         // grille: irregular slits of light between dark slats, like trunks against a low sun
         float x = vUv.x * 58.0, id = floor(x), f = fract(x);
@@ -180,10 +183,10 @@ export function buildBoard() {
   }));
   sky.position.set(0, 70, -168); scene.add(sky);
   const shafts = new THREE.Group(); scene.add(shafts);
-  const sm = shaftMat(0xffa860, { gain: 0.06, mode: 1, streak: 3, pow: 1.2, soft: 14, fadeTop: 0.02, fadeBot: 0.75 });
+  const sm = shaftMat(0xffb070, { gain: 0.2, mode: 1, streak: 3, pow: 1.2, soft: 14, fadeTop: 0.02, fadeBot: 0.75 });
   for (let i = 0; i < 9; i++) {
-    const s = fxMesh(new THREE.PlaneGeometry(16 + hash2(i, 5) * 22, 300), sm);
-    s.position.set(-150 + i * 36 + hash2(i, 9) * 14, 62, -128 + hash2(i, 3) * 34); s.rotation.set(0.42, 0, -0.5);
+    const s = fxMesh(new THREE.PlaneGeometry(14 + hash2(i, 5) * 20, 210), sm);
+    s.position.set(-170 + i * 40 + hash2(i, 9) * 14, 74, -100 + hash2(i, 3) * 70); s.rotation.set(0.0, 0, -0.62);
     shafts.add(s);
   }
   // ---- the hero trace: a gold river from the foreground to the socket
@@ -219,9 +222,10 @@ export function buildBoard() {
   scene.add(bokeh.mesh);
 
   return {
-    scene, cam, sun, hemi, path, pathLen: path.getLength(), leds, ledGlow, wake, rotor, ramBars, dust, bokeh, shafts, sm,
+    scene: root, cam, sun, hemi, path, pathLen: path.getLength(), at: u => { const p = path.getPointAt(clamp(u)); p.x = -p.x; return p; }, tan: u => { const p = path.getTangentAt(clamp(u)); p.x = -p.x; return p; }, leds, ledGlow, wake, rotor, ramBars, dust, bokeh, shafts, sm,
     // progress u (0..1) of the spark along the hero trace lights the wake, the LEDs and the RAM bars
-    update(t, u, camera) {
+    update(t, u, cameraW) {
+      const camera = { position: V3(-cameraW.position.x, cameraW.position.y, cameraW.position.z) };
       rotor.rotation.z = -t * 1.1;
       const pts = []; const n = 110;
       for (let i = 0; i < n; i++) pts.push(path.getPointAt(clamp(u * (i / (n - 1)))).setY(0.3));

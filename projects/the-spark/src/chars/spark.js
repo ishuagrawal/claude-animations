@@ -30,7 +30,7 @@ export class Spark {
     const rig = this.rig = new THREE.Group(); this.group.add(rig);
     this.bodyMat = new THREE.ShaderMaterial({
       uniforms: { ...FXU, uLean: { value: v() }, uWobble: { value: 1 }, uGain: { value: 1 },
-        uCore: { value: new THREE.Color(1.0, 1.0, 0.96) }, uEdge: { value: new THREE.Color(0.22, 0.82, 1.0) } },
+        uCore: { value: new THREE.Color(0.9, 1.0, 1.0) }, uEdge: { value: new THREE.Color(0.22, 0.82, 1.0) } },
       vertexShader: `uniform float uTime, uWobble; uniform vec3 uLean; varying vec3 vN; varying vec3 vV; varying float vZ; varying float vH;
         void main() {
           vec3 p = position; float h = clamp(p.y * 0.5 + 0.5, 0.0, 1.0);
@@ -59,9 +59,9 @@ export class Spark {
       fragmentShader: `precision highp float; ${DEPTH_GLSL} uniform vec3 uColor; uniform float uOp; varying float vZ; varying vec3 vN; varying vec3 vV;
         void main() { if (sceneZ() < vZ - 0.03) discard; float f = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);
           gl_FragColor = vec4(uColor + vec3(0.02, 0.07, 0.16) * pow(1.0 - f, 2.0), uOp * smoothstep(0.0, 0.35, f)); }`,
-      transparent: true, depthWrite: false,
+      transparent: true, depthWrite: false, depthTest: false,
     });
-    const hiMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false });
+    const hiMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, depthTest: false });
     const sph = new THREE.SphereGeometry(1, 20, 14);
     this.eyes = [-1, 1].map(s => {
       const e = new THREE.Mesh(sph, eyeMat); e.layers.set(FX_LAYER); e.renderOrder = 20; e.frustumCulled = false;
@@ -97,14 +97,14 @@ export class Spark {
     this.rig.position.copy(pos);
     this.rig.scale.setScalar(size);
     // body: wisp points up at rest and trails behind the motion
-    _a.copy(Y).multiplyScalar(1 - sp * 0.85);
-    if (speed > 1e-5) _a.addScaledVector(vel, -sp / speed);
+    _a.copy(Y).multiplyScalar(1 - sp * 0.4);
+    if (speed > 1e-5) _a.addScaledVector(vel, -sp * 0.62 / speed);
     _a.normalize();
     this.body.quaternion.setFromUnitVectors(Y, _a);
-    const sq = (P.squash ?? 1) * (1 + sp * 0.35), ix = 1 / Math.sqrt(sq);
+    const sq = (P.squash ?? 1) * (1 + sp * 0.16), ix = 1 / Math.sqrt(sq);
     this.body.scale.set(ix, sq, ix);
     this.bodyMat.uniforms.uWobble.value = 1 + sp * 1.2;
-    this.bodyMat.uniforms.uGain.value = lerp(0.5, 1.04, clamp(glow));
+    this.bodyMat.uniforms.uGain.value = lerp(0.5, 0.98, clamp(glow));
     // face toward the camera with a look offset
     _m.lookAt(camera.position, pos, camera.up);
     this.face.quaternion.setFromRotationMatrix(_m);
@@ -113,13 +113,14 @@ export class Spark {
     this.face.quaternion.multiply(_q);
     const open = clamp(P.open ?? 1, 0.06, 1.3), wide = P.wide ?? 1, happy = P.happy ?? 0;
     for (const { e, h, h2, s } of this.eyes) {
-      const ex = 0.29 * s, ey = 0.06 + happy * 0.05, ez = 0.9;
+      const ex = 0.3 * s, ey = 0.06 + happy * 0.05, ez = 0.955;
       e.position.set(ex, ey, ez); e.rotation.set(0, s * 0.3, s * -0.06 * (1 - happy) + s * 0.25 * happy);
       e.scale.set(0.135 * wide * (1 + happy * 0.12), 0.215 * wide * open * (1 - happy * 0.42), 0.06);
       const hv = open > 0.35 ? 1 : 0;
       h.position.set(ex - 0.045, ey + 0.085 * open, ez + 0.065); h.scale.setScalar(0.05 * wide * hv);
       h2.position.set(ex + 0.05, ey - 0.07 * open, ez + 0.06); h2.scale.setScalar(0.024 * wide * hv);
     }
+    this.face.scale.set(ix, sq, ix);        // keep the face on the squashed/stretched surface
     this.eyeMat.uniforms.uOp.value = clamp((P.eyes ?? 1));
     this.hiMat.opacity = clamp((P.eyes ?? 1));
     this.rig.updateMatrixWorld(true);
@@ -159,6 +160,7 @@ export class Spark {
     this.glow.set(1, pos.x, pos.y, pos.z, 3.3 * size, 0.3, 0.8, 1.0, 0.3 * glow * fl, 0);
     this.glow.commit();
     this.light.position.copy(pos);
+    this.light.color.set(P.lightCol ?? this.col);
     this.light.intensity = (P.light ?? 2.2) * glow * fl;
     this.light.distance = P.lightDist ?? 16;
     // trail + motes
