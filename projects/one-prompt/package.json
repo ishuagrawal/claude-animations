@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "render": "node render/render.mjs", "stills": "node render/render.mjs --stills 2,6 --sheet check" }
+}
